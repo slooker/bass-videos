@@ -1,0 +1,36 @@
+<html>
+  <head>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <link href="http://vjs.zencdn.net/4.11/video-js.css" rel="stylesheet">
+    <script src="http://vjs.zencdn.net/4.11/video.js"></script>
+    <script>
+window.onload = function() {
+console.log(videojs.players);
+//html5 - prevent simultaneous video playback - pauses other playing videos upon play
+$('audio,video').bind('play', function() {
+    activated = this;
+    $('audio,video').each(function() {
+      if(this != activated) this.pause();
+      });
+    });
+
+
+}
+
+    </script>
+  </head>
+  <body>
+{{#each videos}}
+    <video id="{{key}}" class="video-js vjs-default-skin" controls
+ preload="metadata" width="640" height="264" poster="MY_VIDEO_POSTER.jpg"
+ data-setup="{}">
+ <source src="{{url}}" type='video/mp4'>
+ <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
+</video>  
+{{key}} -- {{notes}}<br />
+{{/each}}
+
+
+
+  </body>
+</html>
