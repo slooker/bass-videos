@@ -3,6 +3,29 @@
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
     <link href="http://vjs.zencdn.net/4.11/video-js.css" rel="stylesheet">
     <script src="http://vjs.zencdn.net/4.11/video.js"></script>
+    <style> 
+      body { padding: 1em; }
+      * { box-sizing: border-box; -moz-box-sizing: border-box; }
+      .grid { border: 1px solid gray; }
+      .row { overflow: auto; }
+      
+      .cell {
+        width: 20%;
+        float: left;
+        border: 1px solid gray;
+        padding: 1em;
+      }body { padding: 1em; }
+      * { box-sizing: border-box; -moz-box-sizing: border-box; }
+      .grid { border: 1px solid gray; }
+      .row { overflow: auto; }
+      
+      .cell {
+        width: 20%;
+        float: left;
+        border: 1px solid gray;
+        padding: 1em;
+      }
+    </style>
     <script>
 window.onload = function() {
 console.log(videojs.players);
@@ -20,17 +43,21 @@ $('audio,video').bind('play', function() {
     </script>
   </head>
   <body>
-{{#each videos}}
-    <video id="{{key}}" class="video-js vjs-default-skin" controls
- preload="metadata" width="640" height="264" poster="MY_VIDEO_POSTER.jpg"
- data-setup="{}">
- <source src="{{url}}" type='video/mp4'>
- <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
-</video>  
-{{key}} -- {{notes}}<br />
-{{/each}}
-
-
-
+    <div class="grid">
+      {{#each videos}}
+      <div class="row">
+        {{#each this}}
+        <video id="{{key}}" class="video-js vjs-default-skin" controls
+          preload="metadata" width="470" height="264" poster="MY_VIDEO_POSTER.jpg"
+          data-setup="{}">
+          <source src="{{url}}" type='video/mp4'>
+          <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
+        </video>  
+        {{day}} -- {{song}}<br />
+        by {{artist}}<br />
+        {{/each}}
+      </div>
+      {{/each}}
+    </div>
   </body>
 </html>

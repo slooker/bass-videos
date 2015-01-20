@@ -1,0 +1,20 @@
+{
+  "name": "myproject",
+  "version": "1.0.0",
+  "description": "My first project",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/slooker/bass-videos.git"
+  },
+  "dependencies": {
+    "aws-sdk": "~2.1",
+    "handlebars": "~2.0"
+  },
+  "author": "Shawn Looker",
+  "license": "Apache 2.0",
+  "bugs": {
+    "url": "https://github.com/slooker/bass-videos/issues"
+  },
+  "homepage": "https://github.com/slooker/bass-videos"
+}
