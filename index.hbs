@@ -6,40 +6,28 @@
     <style> 
       body { padding: 1em; }
       * { box-sizing: border-box; -moz-box-sizing: border-box; }
+/*
       .grid { border: 1px solid gray; }
+*/
       .row { overflow: auto; }
       
       .cell {
-        width: 20%;
+        width: 30%;
         float: left;
-        border: 1px solid gray;
-        padding: 1em;
-      }body { padding: 1em; }
-      * { box-sizing: border-box; -moz-box-sizing: border-box; }
-      .grid { border: 1px solid gray; }
-      .row { overflow: auto; }
-      
-      .cell {
-        width: 20%;
-        float: left;
-        border: 1px solid gray;
         padding: 1em;
       }
     </style>
     <script>
-window.onload = function() {
-console.log(videojs.players);
-//html5 - prevent simultaneous video playback - pauses other playing videos upon play
-$('audio,video').bind('play', function() {
-    activated = this;
-    $('audio,video').each(function() {
-      if(this != activated) this.pause();
-      });
-    });
-
-
-}
-
+      window.onload = function() {
+        console.log(videojs.players);
+        //html5 - prevent simultaneous video playback - pauses other playing videos upon play
+        $('audio,video').bind('play', function() {
+          activated = this;
+          $('audio,video').each(function() {
+            if(this != activated) this.pause();
+          });
+        });
+      }
     </script>
   </head>
   <body>
@@ -47,6 +35,7 @@ $('audio,video').bind('play', function() {
       {{#each videos}}
       <div class="row">
         {{#each this}}
+        <div class="cell">
         <video id="{{key}}" class="video-js vjs-default-skin" controls
           preload="metadata" width="470" height="264" poster="MY_VIDEO_POSTER.jpg"
           data-setup="{}">
@@ -55,6 +44,7 @@ $('audio,video').bind('play', function() {
         </video>  
         {{day}} -- {{song}}<br />
         by {{artist}}<br />
+        </div>
         {{/each}}
       </div>
       {{/each}}
