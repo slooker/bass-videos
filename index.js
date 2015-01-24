@@ -1,7 +1,10 @@
 var AWS = require('aws-sdk'); 
-var http = require('http');
 var fs = require('fs');
 var hb = require('handlebars');
+var Hapi = require('hapi');
+
+var server = new Hapi.Server();
+server.connection({ port: 8000 });
 
 var ROW_WIDTH = 3;
 var index = fs.readFileSync('index.hbs').toString();
@@ -58,14 +61,19 @@ function writeS3Data(videos) {
   });
 }
 
+server.route({
+  method: 'GET',
+  path: '/',
+  handler: function(request, reply) {
 
-var server = http.createServer(function (request, response) {
-  response.writeHead(200, {"Content-Type": "text/html"});
-  var template = hb.compile(index); 
-  var videoFile = fs.readFileSync('videos.json');
-  var videos = JSON.parse(videoFile);
+    var template = hb.compile(index); 
+    var videoFile = fs.readFileSync('videos.json');
+    var videos = JSON.parse(videoFile);
+    var html = template({videos: videos});
+    reply(html)
+  }
+});
 
-  //console.log(videos);
-  var html = template({videos: videos});
-  response.end(html);
-}).listen(8000);
+server.start(function() {
+  console.log('Server running at ', server.info.uri);
+});

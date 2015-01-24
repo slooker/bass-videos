@@ -1,5 +1,5 @@
 {
-  "name": "Bass Videos",
+  "name": "bass-videos",
   "version": "1.0.0",
   "description": "Streaming Bass Videos from S3",
   "main": "index.js",
