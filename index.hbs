@@ -34,9 +34,8 @@
     <div class="grid">
       {{#each videos}}
       <div class="row">
-        {{#each this}}
         <div class="cell">
-        <video id="{{key}}" class="video-js vjs-default-skin" controls
+        <video id="{{day}}" class="video-js vjs-default-skin" controls
           preload="metadata" width="470" height="264" poster="MY_VIDEO_POSTER.jpg"
           data-setup="{}">
           <source src="{{url}}" type='video/mp4'>
@@ -45,7 +44,6 @@
         {{day}} -- {{song}}<br />
         by {{artist}}<br />
         </div>
-        {{/each}}
       </div>
       {{/each}}
     </div>

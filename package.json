@@ -10,7 +10,9 @@
   "dependencies": {
     "aws-sdk": "~2.1",
     "handlebars": "~2.0",
-    "hapi": "8.1"
+    "hapi": "8.1",
+    "nedb": "^1.1.1",
+    "node-schedule": ">= 0.1.15"
   },
   "author": "Shawn Looker",
   "license": "Apache 2.0",
