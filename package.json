@@ -1,7 +1,7 @@
 {
-  "name": "myproject",
+  "name": "Bass Videos",
   "version": "1.0.0",
-  "description": "My first project",
+  "description": "Streaming Bass Videos from S3",
   "main": "index.js",
   "repository": {
     "type": "git",
