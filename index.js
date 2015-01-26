@@ -24,8 +24,6 @@ var s3 = new AWS.S3();
 var bucket = 'bass-videos'
 var baseUrl = 'https://s3-us-west-1.amazonaws.com/'
 
-
-
 // This is ugly and I wish there was a better way.
 function fetchNewObjects() {
   console.log("Fetching new objects");
@@ -46,7 +44,7 @@ function fetchNewObjects() {
         var url = baseUrl + bucket + '/' + key;
         //console.log(url);
         db.find({day: day}, function (err, docs) {
-          if (docs.length === 0) {
+          if (docs.length === 0) { // Don't already have a video with that day (multi videos on same day are appended with .1, .2 etc)
             db.insert({ day: day, artist: artist, song: song, url: url });
           }
         });
@@ -73,6 +71,14 @@ server.route({
       var html = template({videos: videos, test: JSON.stringify(videos)});
       reply(html)
     });
+  }
+});
+
+server.route({
+  method: 'GET',
+  path: '/poster.jpg',
+  handler: function(request, reply) {
+    reply.file('poster.jpg');
   }
 });
 

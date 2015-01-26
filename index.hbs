@@ -3,6 +3,8 @@
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
     <link href="http://vjs.zencdn.net/4.11/video-js.css" rel="stylesheet">
     <script src="http://vjs.zencdn.net/4.11/video.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+
     <style> 
       body { padding: 1em; }
       * { box-sizing: border-box; -moz-box-sizing: border-box; }
@@ -16,10 +18,11 @@
         float: left;
         padding: 1em;
       }
+
     </style>
     <script>
-      window.onload = function() {
-        console.log(videojs.players);
+      $(document).ready(function() {
+          $('.video-row').hide();
         //html5 - prevent simultaneous video playback - pauses other playing videos upon play
         $('audio,video').bind('play', function() {
           activated = this;
@@ -27,25 +30,29 @@
             if(this != activated) this.pause();
           });
         });
-      }
+
+        $(document).on('click', '.row', function() {
+            var vidId = this.id + "-video";
+            $('.video-row').hide();
+            $('#'+vidId).show();
+        });
+      });
+
     </script>
   </head>
   <body>
-    <div class="grid">
-      {{#each videos}}
-      <div class="row">
-        <div class="cell">
-        <video id="{{day}}" class="video-js vjs-default-skin" controls
-          preload="metadata" width="470" height="264" poster="MY_VIDEO_POSTER.jpg"
-          data-setup="{}">
-          <source src="{{url}}" type='video/mp4'>
-          <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
-        </video><br />
-        {{day}} -- {{song}}<br />
-        by {{artist}}<br />
-        </div>
-      </div>
-      {{/each}}
+    {{#each videos}}
+    <div class="row" id="{{day}}">
+      {{day}} -- {{song}} by {{artist}}
     </div>
+    <div class="video-row" id="{{day}}-video">
+      <video id="{{day}}" class="video-js vjs-default-skin vjs-big-play-centered" controls
+        preload="none" width="470" height="264" poster="poster.jpg"
+        data-setup="{}">
+        <source src="{{url}}" type='video/mp4'>
+        <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
+      </video><br />
+    </div>
+    {{/each}}
   </body>
 </html>
