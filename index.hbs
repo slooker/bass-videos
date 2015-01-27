@@ -1,16 +1,12 @@
 <html>
   <head>
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
     <link href="http://vjs.zencdn.net/4.11/video-js.css" rel="stylesheet">
     <script src="http://vjs.zencdn.net/4.11/video.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
 
     <style> 
       body { padding: 1em; }
       * { box-sizing: border-box; -moz-box-sizing: border-box; }
-/*
-      .grid { border: 1px solid gray; }
-*/
+
       .row { overflow: auto; }
       
       .cell {
@@ -23,7 +19,7 @@
 
     </style>
     <script>
-      $(document).ready(function() {
+      document.addEventListener("DOMContentLoaded", function(event) {
         //html5 - prevent simultaneous video playback - pauses other playing videos upon play
         function stopOtherVideos() {
           var videoPlayers = document.getElementsByTagName('video');
@@ -33,17 +29,19 @@
           }
         }
 
-        $(document).on('click', '.row', function() {
-          stopOtherVideos();
-          var vidId = this.id + "-video";
-          var hideThese = document.getElementsByClassName('video-row');
-          for (var i = 0; i < hideThese.length; i++) {
-            var myDiv = document.getElementById(hideThese[i].id);
-            myDiv.style.display = 'none';
-
+        document.getElementById('video-list').addEventListener('click', function(event) {
+          if (event.target.className === 'row') {
+            stopOtherVideos();
+            var vidId = event.target.id + "-video";
+            var hideThese = document.getElementsByClassName('video-row');
+            for (var i = 0; i < hideThese.length; i++) {
+              var myDiv = document.getElementById(hideThese[i].id);
+              myDiv.style.display = 'none';
+  
+            }
+            var current = document.getElementById(vidId);
+            current.style.display = 'block'
           }
-          var current = document.getElementById(vidId);
-          current.style.display = 'block'
         });
       });
 
