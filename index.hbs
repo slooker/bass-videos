@@ -29,6 +29,7 @@
           }
         }
 
+        // Handle onclick listeners.  This seems ugly, but it's fast?  ... that's good..ish?
         document.getElementById('video-list').addEventListener('click', function(event) {
           if (event.target.className === 'row') {
             stopOtherVideos();
@@ -48,6 +49,12 @@
     </script>
   </head>
   <body>
+<!--
+    <h4>Pure HTML5 Video</h4>
+    <video id="html5-day5" width="470" height="264" preload controls>
+      <source src="https://s3-us-west-1.amazonaws.com/bass-videos/005+-+Red+Fang+-+Wires.mp4" />
+    </video>
+-->
     <div id="video-list">
       {{#each videos}}
       <div class="row" id="{{day}}">
