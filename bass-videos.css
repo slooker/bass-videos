@@ -1,0 +1,45 @@
+
+/* Not sure what this does (Well, it adds space around the content).  Need to figure out how */
+* { box-sizing: border-box; -moz-box-sizing: border-box; }
+
+/* This gets rid of the dot next to the list? */
+.row { overflow: auto; }
+
+/*
+.video-row { display: none };
+*/
+.video-row { padding-bottom: 42px; }
+
+/* Clearfix hack to make sure everything inside the row stays inside the row.  
+ * Not sure how this works either.
+ */
+.row:before
+.row:after {
+  content:"";
+  display: table;
+  clear: both;
+}
+
+.grid-3 { 
+  width: 33%; 
+  display: inline-block;
+}
+
+/* This keeps our columns from overlapping if empty (which they should never be anyway */
+[class*='col-'] {
+  float: left;
+  min-height: 1px;
+  width: 20%;
+  /* gutter snip..err.. width */
+  padding: 12px;
+}
+
+.video-js {
+  position: relative !important;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 110;
+}

@@ -74,6 +74,22 @@ server.route({
   }
 });
 
+server.route({ 
+  method: 'GET',
+  path: '/bass-videos.css',
+  handler: function(request, reply) {
+    reply.file('bass-videos.css');
+  }
+});
+
+server.route({ 
+  method: 'GET',
+  path: '/bass-videos.js',
+  handler: function(request, reply) {
+    reply.file('bass-videos.js');
+  }
+});
+
 server.route({
   method: 'GET',
   path: '/poster.jpg',

@@ -1,52 +1,9 @@
 <html>
   <head>
     <link href="http://vjs.zencdn.net/4.11/video-js.css" rel="stylesheet">
+    <link href="bass-videos.css" rel="stylesheet">
     <script src="http://vjs.zencdn.net/4.11/video.js"></script>
-
-    <style> 
-      body { padding: 1em; }
-      * { box-sizing: border-box; -moz-box-sizing: border-box; }
-
-      .row { overflow: auto; }
-      
-      .cell {
-        width: 30%;
-        float: left;
-        padding: 1em;
-      }
-
-      .video-row { display: none };
-
-    </style>
-    <script>
-      document.addEventListener("DOMContentLoaded", function(event) {
-        //html5 - prevent simultaneous video playback - pauses other playing videos upon play
-        function stopOtherVideos() {
-          var videoPlayers = document.getElementsByTagName('video');
-          for (var i = 0; i < videoPlayers.length; i++) {
-            var vidPlayer = videoPlayers[i];
-            vidPlayer.pause();
-          }
-        }
-
-        // Handle onclick listeners.  This seems ugly, but it's fast?  ... that's good..ish?
-        document.getElementById('video-list').addEventListener('click', function(event) {
-          if (event.target.className === 'row') {
-            stopOtherVideos();
-            var vidId = event.target.id + "-video";
-            var hideThese = document.getElementsByClassName('video-row');
-            for (var i = 0; i < hideThese.length; i++) {
-              var myDiv = document.getElementById(hideThese[i].id);
-              myDiv.style.display = 'none';
-  
-            }
-            var current = document.getElementById(vidId);
-            current.style.display = 'block'
-          }
-        });
-      });
-
-    </script>
+    <script src="bass-videos.js"></script>
   </head>
   <body>
 <!--
@@ -57,16 +14,17 @@
 -->
     <div id="video-list">
       {{#each videos}}
-      <div class="row" id="{{day}}">
-        {{day}} -- {{song}} by {{artist}}
-      </div>
-      <div class="video-row" id="{{day}}-video">
-        <video id="{{day}}" class="video-js vjs-default-skin vjs-big-play-centered" controls
-          preload="none" width="470" height="264" poster="poster.jpg"
-          data-setup="{}">
-          <source src="{{url}}" type='video/mp4'>
-          <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
-        </video><br />
+      <div class='grid-3'>
+        <div class="row" id="{{day}}">
+          {{day}} -- {{song}} by {{artist}}
+        </div>
+        <div class="video-row" id="{{day}}-video">
+          <video id="{{day}}" class="video-js vjs-default-skin vjs-big-play-centered" controls
+            preload="none" poster="poster.jpg" data-setup="{}" width="80%" height="60%">
+            <source src="{{url}}" type='video/mp4'>
+            <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
+          </video><br />
+        </div>
       </div>
       {{/each}}
     </div>
