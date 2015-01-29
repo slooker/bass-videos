@@ -25,6 +25,11 @@
   display: inline-block;
 }
 
+img {
+  width: 100%    !important;
+  height: auto   !important;
+}
+
 video {
   width: 100%    !important;
   height: auto   !important;

@@ -17,7 +17,9 @@ server.connection({ port: 8000 });
 
 // Read the files we need that never change
 var index = fs.readFileSync('index.hbs').toString();
-var template = hb.compile(index); 
+var day = fs.readFileSync('day.hbs').toString();
+var indexTemplate = hb.compile(index); 
+var dayTemplate = hb.compile(day); 
 
 // Handle AWS stuff
 var s3 = new AWS.S3(); 
@@ -35,19 +37,34 @@ function fetchNewObjects() {
       //console.log(data)
       var videoData = data["Contents"]
       videoData.forEach(function(vid) {
-        var key = vid["Key"].replace(/ /g, "+");
-        var entry = vid["Key"].split(" - ");
-        var day = entry[0];
-        var artist = entry[1];
-        var song = entry[2].replace(".mp4", "");
-        var prettyKey = vid["Key"].replace(".mp4","");
-        var url = baseUrl + bucket + '/' + key;
-        //console.log(url);
-        db.find({day: day}, function (err, docs) {
-          if (docs.length === 0) { // Don't already have a video with that day (multi videos on same day are appended with .1, .2 etc)
-            db.insert({ day: day, artist: artist, song: song, url: url });
-          }
-        });
+        console.log("Key: "+vid["Key"]);
+        // Code to fetch images if they don't already exist and download them
+        if (/^images/.test(vid["Key"])) {
+          fs.exists(vid["Key"], function(exists) {
+            if (!exists) {
+              var file = fs.createWriteStream(vid["Key"])
+              s3.getObject({ Bucket: bucket, Key: vid["Key"]}).
+                on('httpData', function(chunk) { file.write(chunk); }).
+                on('httpDone', function() { file.end(); }).
+                send();
+            }
+          });
+          return;
+        }
+          var key = vid["Key"].replace(/ /g, "+");
+          var entry = vid["Key"].split(" - ");
+          var day = entry[0];
+          var artist = entry[1];
+          var song = entry[2].replace(".mp4", "");
+          var prettyKey = vid["Key"].replace(".mp4","");
+          var videoUrl = baseUrl + bucket + '/' + key;
+          var imageUrl ='/images/'+day+'.png';
+          //console.log(url);
+          db.find({day: day}, function (err, docs) {
+            if (docs.length === 0) { // Don't already have a video with that day (multi videos on same day are appended with .1, .2 etc)
+              db.insert({ day: day, artist: artist, song: song, videoUrl: videoUrl, imageUrl: imageUrl });
+            }
+          });
       });
     }
   });
@@ -68,7 +85,8 @@ server.route({
   handler: function(request, reply) {
     db.find({}, function(err,videos) {
       videos.sort(compare);
-      var html = template({videos: videos, test: JSON.stringify(videos)});
+      console.log(videos);
+      var html = indexTemplate({videos: videos, test: JSON.stringify(videos)});
       reply(html)
     });
   }
@@ -90,11 +108,16 @@ server.route({
   }
 });
 
-server.route({
+server.route({ 
   method: 'GET',
-  path: '/poster.jpg',
+  path: '/images/{day}.png',
   handler: function(request, reply) {
-    reply.file('poster.jpg');
+    var day = request.params.day;
+    if (/^\d+(\.\d+)*$/.test(day)) {
+      reply.file('images/'+day+'.png');
+    } else {
+      reply("No image found.").code(404);
+    }
   }
 });
 
@@ -105,7 +128,7 @@ server.route({
     var day = request.params.day;
     db.find({day: day}, function(err, videos) {
       if (videos.length > 0) {
-        var html = template({videos: [videos[0]]});
+        var html = dayTemplate({videos: [videos[0]]});
         reply(html)
       } else {
         reply("No video found for that day.").code(404);
