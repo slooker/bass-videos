@@ -25,6 +25,10 @@
   display: inline-block;
 }
 
+.big-video {
+  width: 60%;
+}
+
 img {
   width: 100%    !important;
   height: auto   !important;
@@ -44,12 +48,3 @@ video {
   padding: 12px;
 }
 
-.video-js {
-  position: relative !important;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 110;
-}

@@ -1,37 +1,32 @@
 <html>
   <head>
-    <link href="http://vjs.zencdn.net/4.11/video-js.css" rel="stylesheet">
-    <link href="bass-videos.css" rel="stylesheet">
-    <script src="http://vjs.zencdn.net/4.11/video.js"></script>
-    <script src="bass-videos.js"></script>
+    <link href="/bass-videos.css" rel="stylesheet">
+    <script src="/bass-videos.js"></script>
 
   </head>
   <body>
 <!--
     <h4>Pure HTML5 Video</h4>
     <video id="{{day}}-video" preload controls>
-      <source src="{{url}}" />
+      <source src="{{videoUrl}}" />
       <p>To view this video please enable JavaScript, and consider upgrading to a web browser that doesn't suck.</p>
     </video>
 
     <video id="{{day}}" class="video-js vjs-default-skin vjs-big-play-centered" controls
-    preload="none" poster="poster.jpg" data-setup="{}">
-      <source src="{{url}}" type='video/mp4'>
+    preload="none" poster="{{imageUrl}}" data-setup="{}">
+      <source src="{{videoUrl}}" type='video/mp4'>
       <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
     </video><br />
 -->
     <div id="video-list">
       {{#each videos}}
-      <div class='grid-3'>
+      <div class='big-video'>
         <div class="row" id="{{day}}">
-          {{day}} -- {{song}} by {{artist}}
-        </div>
-        <div class="video-row" id="{{day}}-video">
-          <video id="{{day}}" class="video-js vjs-default-skin vjs-big-play-centered" controls
-            preload="none" poster="{{imageUrl}}" data-setup="{}">
-            <source src="{{videoUrl}}" type='video/mp4'>
-            <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
-          </video><br />
+          {{day}} -- {{song}} by {{artist}}<br />
+          <video id="{{day}}-video" preload="metadata" controls>
+            <source src="{{videoUrl}}" />
+            <p>To view this video please enable JavaScript, and consider upgrading to a web browser that doesn't suck.</p>
+          </video>
         </div>
       </div>
       {{/each}}

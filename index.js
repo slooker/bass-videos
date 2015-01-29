@@ -28,7 +28,7 @@ var baseUrl = 'https://s3-us-west-1.amazonaws.com/'
 
 // This is ugly and I wish there was a better way.
 function fetchNewObjects() {
-  console.log("Fetching new objects");
+  //console.log("Fetching new objects");
   s3.listObjects({ Bucket: bucket }, function(err, data) {
     if (err) {
       console.log(err, err.stack); // an error occurred
@@ -37,7 +37,7 @@ function fetchNewObjects() {
       //console.log(data)
       var videoData = data["Contents"]
       videoData.forEach(function(vid) {
-        console.log("Key: "+vid["Key"]);
+        //console.log("Key: "+vid["Key"]);
         // Code to fetch images if they don't already exist and download them
         if (/^images/.test(vid["Key"])) {
           fs.exists(vid["Key"], function(exists) {
@@ -85,7 +85,7 @@ server.route({
   handler: function(request, reply) {
     db.find({}, function(err,videos) {
       videos.sort(compare);
-      console.log(videos);
+      //console.log(videos);
       var html = indexTemplate({videos: videos, test: JSON.stringify(videos)});
       reply(html)
     });
