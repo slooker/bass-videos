@@ -1,18 +1,27 @@
-document.addEventListener("DOMContentLoaded", function(event) {
-  // scale size based on width
+
+// scale size based on width
+function resizeVideos() {
   var videos = document.getElementsByTagName('video');
-  var width = videos[0].offsetWidth;
+  var vidDivs = document.getElementsByClassName('row');
+  var width = vidDivs[0].offsetWidth;
   var height = width * 0.5625;
   console.log("Width: "+width+", Height: "+height);
-
     for (var i = 0; i < videos.length; i++) {
       var vidPlayer = videos[i];
       vidPlayer.setAttribute("height",height);
       vidPlayer.setAttribute("width",width);
+      vidPlayer.setAttribute("style","width:"+width+"px; height:"+height+"px;");
     }
+}
 
+/*
+window.addEventListener("resize", resizeVideos, false);
+*/
 
-
+document.addEventListener("DOMContentLoaded", function(event) {
+/*
+  resizeVideos();
+*/
 
   //html5 - prevent simultaneous video playback - pauses other playing videos upon play
   function stopOtherVideos() {

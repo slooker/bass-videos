@@ -4,13 +4,21 @@
     <link href="bass-videos.css" rel="stylesheet">
     <script src="http://vjs.zencdn.net/4.11/video.js"></script>
     <script src="bass-videos.js"></script>
+
   </head>
   <body>
 <!--
     <h4>Pure HTML5 Video</h4>
-    <video id="html5-day5" width="470" height="264" preload controls>
-      <source src="https://s3-us-west-1.amazonaws.com/bass-videos/005+-+Red+Fang+-+Wires.mp4" />
+    <video id="{{day}}-video" preload controls>
+      <source src="{{url}}" />
+      <p>To view this video please enable JavaScript, and consider upgrading to a web browser that doesn't suck.</p>
     </video>
+
+    <video id="{{day}}" class="video-js vjs-default-skin vjs-big-play-centered" controls
+    preload="none" poster="poster.jpg" data-setup="{}">
+      <source src="{{url}}" type='video/mp4'>
+      <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
+    </video><br />
 -->
     <div id="video-list">
       {{#each videos}}
@@ -19,10 +27,9 @@
           {{day}} -- {{song}} by {{artist}}
         </div>
         <div class="video-row" id="{{day}}-video">
-          <video id="{{day}}" class="video-js vjs-default-skin vjs-big-play-centered" controls
-            preload="none" poster="poster.jpg" data-setup="{}">
-            <source src="{{url}}" type='video/mp4'>
-            <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
+          <video id="{{day}}-video" preload="none" controls>
+            <source src="{{url}}" />
+            <p>To view this video please enable JavaScript, and consider upgrading to a web browser that doesn't suck.</p>
           </video><br />
         </div>
       </div>

@@ -25,6 +25,11 @@
   display: inline-block;
 }
 
+video {
+  width: 100%    !important;
+  height: auto   !important;
+}
+
 /* This keeps our columns from overlapping if empty (which they should never be anyway */
 [class*='col-'] {
   float: left;
