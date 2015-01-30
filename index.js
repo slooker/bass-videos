@@ -125,12 +125,15 @@ server.route({
   handler: function(request, reply) {
     var file = 'images/'+request.params.file + '.png'
     fs.exists(file, function(exists) {
-      if (exists) {
-        reply.file(file);
-      } else {
-        reply("No image found.").code(404);
+      if (!/[^A-Za-z0-9\-\.\']/.test(request.params.file)) {
+        if (exists) {
+          reply.file(file);
+        } else {
+          reply("No image found.").code(404);
+        }
       }
     });
+    reply("No image found.").code(404);
   }
 });
 
