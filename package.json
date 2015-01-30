@@ -12,7 +12,8 @@
     "handlebars": "~2.0",
     "hapi": "8.1",
     "nedb": "^1.1.1",
-    "node-schedule": ">= 0.1.15"
+    "node-schedule": ">= 0.1.15",
+    "hogan": ">= 1.0.2"
   },
   "author": "Shawn Looker",
   "license": "Apache 2.0",

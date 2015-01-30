@@ -1,10 +1,12 @@
 var AWS = require('aws-sdk'); 
 var fs = require('fs');
-var hb = require('handlebars');
+var hogan = require('hogan');
 var Hapi = require('hapi');
 var Datastore = require('nedb')
   , db = new Datastore({ filename: './data', autoload : true });
 var schedule = require('node-schedule');
+
+
 
 // Schedule the new videos to be checked for every 5 minutes
 var scheduled = schedule.scheduleJob('*/5 * * * *', function() {
@@ -14,12 +16,24 @@ var scheduled = schedule.scheduleJob('*/5 * * * *', function() {
 // Setup our hapi server
 var server = new Hapi.Server();
 server.connection({ port: 8000 });
+/*
+server.views({
+  engines: { html: hogan.create() },
+  path: './views',
+  layoutPath: './views/layout',
+  layout: true,
+  partialsPath: './views/partials'
+});
+*/
+    
 
 // Read the files we need that never change
 var index = fs.readFileSync('index.hbs').toString();
 var day = fs.readFileSync('day.hbs').toString();
-var indexTemplate = hb.compile(index); 
-var dayTemplate = hb.compile(day); 
+var topPartial = fs.readFileSync('topPartial.hbs').toString();
+var indexTemplate = hogan.compile(index); 
+var dayTemplate = hogan.compile(day); 
+var topTemplate = hogan.compile(topPartial); 
 
 // Handle AWS stuff
 var s3 = new AWS.S3(); 
@@ -97,7 +111,7 @@ server.route({
     db.find({}, function(err,videos) {
       videos.sort(compare);
       //console.log(videos);
-      var html = indexTemplate({videos: videos, test: JSON.stringify(videos)});
+      var html = indexTemplate.render({videos: videos}, {topPartial: topPartial});
       reply(html)
     });
   }
@@ -125,15 +139,16 @@ server.route({
   handler: function(request, reply) {
     var file = 'images/'+request.params.file + '.png'
     fs.exists(file, function(exists) {
-      if (!/[^A-Za-z0-9\-\.\']/.test(request.params.file)) {
+      if (!/[^A-Za-z0-9\-\.\'\,]/.test(request.params.file)) {
         if (exists) {
           reply.file(file);
         } else {
           reply("No image found.").code(404);
         }
+      } else {
+        reply("No image found.").code(404);
       }
     });
-    reply("No image found.").code(404);
   }
 });
 
@@ -144,7 +159,7 @@ server.route({
     var day = request.params.day;
     db.find({day: day}, function(err, videos) {
       if (videos.length > 0) {
-        var html = dayTemplate({videos: [videos[0]]});
+        var html = dayTemplate.render({videos: [videos[0]]});
         reply(html)
       } else {
         reply("No video found for that day.").code(404);

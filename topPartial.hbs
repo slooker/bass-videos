@@ -8,13 +8,13 @@
 <!--
     <h4>Pure HTML5 Video</h4>
     <video id="{{day}}-video" preload controls>
-      <source src="{{videoUrl}}" />
+      <source src="{{url}}" />
       <p>To view this video please enable JavaScript, and consider upgrading to a web browser that doesn't suck.</p>
     </video>
 
     <video id="{{day}}" class="video-js vjs-default-skin vjs-big-play-centered" controls
-    preload="none" poster="{{imageUrl}}" data-setup="{}">
-      <source src="{{videoUrl}}" type='video/mp4'>
+    preload="none" poster="poster.jpg" data-setup="{}">
+      <source src="{{url}}" type='video/mp4'>
       <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
     </video><br />
 -->
@@ -24,20 +24,10 @@
     </div>
     <div id="container">
       <div id="left-rail">
-        This is my left rail
+        <ul>
+          <li><a href="/songs">Songs</a></li>
+          <li><a href="/days">Days</a></li>
+          <li><a href="/artists">Artists</a></li>
+        </ul>
       </div>
       <div id="video-list">
-        {{#videos}}
-      <div class='big-video'>
-          <video id="{{day}}-video" preload="metadata" controls>
-            <source src="{{videoUrl}}" />
-            <p>To view this video please enable JavaScript, and consider upgrading to a web browser that doesn't suck.</p>
-          </video>
-          <div class="description">Day {{day}}<br />{{song}} by {{artist}}</div>
-        </div>
-      </div>
-    </div>
-      {{/videos}}
-    </div>
-  </body>
-</html>
