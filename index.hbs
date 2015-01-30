@@ -1,13 +1,12 @@
-{{> topPartial}}
+{{< layout}}
+{{$content}}
         {{#videos}}
         <div class='grid-3'>
-          <div class="video-row" id="{{day}}-video">
-            <a href="/day/{{day}}"><img src="{{imageUrl}}"></a><br />
+          <div class="video-row">
+            <a href="/day/{{day}}"><img src="{{imageUrl}}" alt="First frame of day {{day}} playing {{song}} by {{artist}}"></a><br />
             <div class="description">Day {{day}}<br />{{song}} by {{artist}}</div>
           </div>
         </div>
         {{/videos}}
-      </div>
-    </div>
-  </body>
-</html>
+{{/content}}
+{{/layout}}

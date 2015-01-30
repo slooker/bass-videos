@@ -29,11 +29,13 @@ server.views({
 
 // Read the files we need that never change
 var index = fs.readFileSync('index.hbs').toString();
-var day = fs.readFileSync('day.hbs').toString();
-var topPartial = fs.readFileSync('topPartial.hbs').toString();
 var indexTemplate = hogan.compile(index); 
+var day = fs.readFileSync('day.hbs').toString();
 var dayTemplate = hogan.compile(day); 
+var topPartial = fs.readFileSync('topPartial.hbs').toString();
 var topTemplate = hogan.compile(topPartial); 
+var layout = fs.readFileSync('layout.hbs').toString();
+var layoutTemplate = hogan.compile(layout); 
 
 // Handle AWS stuff
 var s3 = new AWS.S3(); 
@@ -111,7 +113,7 @@ server.route({
     db.find({}, function(err,videos) {
       videos.sort(compare);
       //console.log(videos);
-      var html = indexTemplate.render({videos: videos}, {topPartial: topPartial});
+      var html = indexTemplate.render({videos: videos}, {layout: layout});
       reply(html)
     });
   }
@@ -159,7 +161,7 @@ server.route({
     var day = request.params.day;
     db.find({day: day}, function(err, videos) {
       if (videos.length > 0) {
-        var html = dayTemplate.render({videos: [videos[0]]});
+        var html = dayTemplate.render({videos: [videos[0]]}, {layout: layout});
         reply(html)
       } else {
         reply("No video found for that day.").code(404);
