@@ -49,19 +49,23 @@ function fetchNewObjects() {
 }
 
 function imageDownload(imageKey) {
+  
   fs.exists(imageKey, function(exists) {
+    localKey = imageKey.replace('mp4', 'png').replace(/\s/g,'');
     if (!exists) {
-      var file = fs.createWriteStream(imageKey)
-    s3.getObject({ Bucket: bucket, Key: imageKey}).
-    on('httpData', function(chunk) { file.write(chunk); }).
-    on('httpDone', function() { file.end(); }).
-    send();
+      //console.log(imageKey);
+      var file = fs.createWriteStream(localKey)
+      s3.getObject({ Bucket: bucket, Key: imageKey}).
+      on('httpData', function(chunk) { file.write(chunk); }).
+      on('httpDone', function() { file.end(); }).
+      send();
     }
   });
 }
 
 function addVideo(videoKey) {
   var key = videoKey.replace(/ /g, "+");
+  var imageKey = videoKey.replace('mp4', 'png').replace(/\s/g,'');
   var entry = videoKey.split(" - ");
   var day = entry[0];
   //console.log(url);
@@ -71,7 +75,7 @@ function addVideo(videoKey) {
       var song = entry[2].replace(".mp4", "");
       var prettyKey = videoKey.replace(".mp4","");
       var videoUrl = baseUrl + bucket + '/' + key;
-      var imageUrl ='/images/'+day+'.png';
+      var imageUrl ='/images/'+imageKey;
       db.insert({ day: day, artist: artist, song: song, videoUrl: videoUrl, imageUrl: imageUrl });
     }
   });
@@ -117,14 +121,16 @@ server.route({
 
 server.route({ 
   method: 'GET',
-  path: '/images/{day}.png',
+  path: '/images/{file}.png',
   handler: function(request, reply) {
-    var day = request.params.day;
-    if (/^\d+(\.\d+)*$/.test(day)) {
-      reply.file('images/'+day+'.png');
-    } else {
-      reply("No image found.").code(404);
-    }
+    var file = 'images/'+request.params.file + '.png'
+    fs.exists(file, function(exists) {
+      if (exists) {
+        reply.file(file);
+      } else {
+        reply("No image found.").code(404);
+      }
+    });
   }
 });
 
