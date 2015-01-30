@@ -34,38 +34,45 @@ function fetchNewObjects() {
       console.log(err, err.stack); // an error occurred
     } else {
       // successful response
-      //console.log(data)
-      var videoData = data["Contents"]
-      videoData.forEach(function(vid) {
-        //console.log("Key: "+vid["Key"]);
+      var s3ObjectList = data["Contents"]
+      s3ObjectList.forEach(function(obj) {
         // Code to fetch images if they don't already exist and download them
-        if (/^images/.test(vid["Key"])) {
-          fs.exists(vid["Key"], function(exists) {
-            if (!exists) {
-              var file = fs.createWriteStream(vid["Key"])
-              s3.getObject({ Bucket: bucket, Key: vid["Key"]}).
-                on('httpData', function(chunk) { file.write(chunk); }).
-                on('httpDone', function() { file.end(); }).
-                send();
-            }
-          });
+        if (/^images/.test(obj["Key"])) {
+          imageDownload(obj["Key"]);
           return;
+        } else {
+          addVideo(obj["Key"]);
         }
-          var key = vid["Key"].replace(/ /g, "+");
-          var entry = vid["Key"].split(" - ");
-          var day = entry[0];
-          var artist = entry[1];
-          var song = entry[2].replace(".mp4", "");
-          var prettyKey = vid["Key"].replace(".mp4","");
-          var videoUrl = baseUrl + bucket + '/' + key;
-          var imageUrl ='/images/'+day+'.png';
-          //console.log(url);
-          db.find({day: day}, function (err, docs) {
-            if (docs.length === 0) { // Don't already have a video with that day (multi videos on same day are appended with .1, .2 etc)
-              db.insert({ day: day, artist: artist, song: song, videoUrl: videoUrl, imageUrl: imageUrl });
-            }
-          });
       });
+    }
+  });
+}
+
+function imageDownload(imageKey) {
+  fs.exists(imageKey, function(exists) {
+    if (!exists) {
+      var file = fs.createWriteStream(imageKey)
+    s3.getObject({ Bucket: bucket, Key: imageKey}).
+    on('httpData', function(chunk) { file.write(chunk); }).
+    on('httpDone', function() { file.end(); }).
+    send();
+    }
+  });
+}
+
+function addVideo(videoKey) {
+  var key = videoKey.replace(/ /g, "+");
+  var entry = videoKey.split(" - ");
+  var day = entry[0];
+  //console.log(url);
+  db.find({day: day}, function (err, docs) {
+    if (docs.length === 0) { // Don't already have a video with that day (multi videos on same day are appended with .1, .2 etc)
+      var artist = entry[1];
+      var song = entry[2].replace(".mp4", "");
+      var prettyKey = videoKey.replace(".mp4","");
+      var videoUrl = baseUrl + bucket + '/' + key;
+      var imageUrl ='/images/'+day+'.png';
+      db.insert({ day: day, artist: artist, song: song, videoUrl: videoUrl, imageUrl: imageUrl });
     }
   });
 }

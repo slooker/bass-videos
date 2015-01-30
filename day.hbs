@@ -18,17 +18,25 @@
       <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
     </video><br />
 -->
-    <div id="video-list">
-      {{#each videos}}
+    <div id="top">
+      <h1>All About That Bass</h1>
+      One man's struggle to not suck at the bass.  Still a better love story than twilight.
+    </div>
+    <div id="container">
+      <div id="left-rail">
+        This is my left rail
+      </div>
+      <div id="video-list">
+        {{#each videos}}
       <div class='big-video'>
-        <div class="row" id="{{day}}">
-          {{day}} -- {{song}} by {{artist}}<br />
           <video id="{{day}}-video" preload="metadata" controls>
             <source src="{{videoUrl}}" />
             <p>To view this video please enable JavaScript, and consider upgrading to a web browser that doesn't suck.</p>
           </video>
+          <div class="description">Day {{day}}<br />{{song}} by {{artist}}</div>
         </div>
       </div>
+    </div>
       {{/each}}
     </div>
   </body>

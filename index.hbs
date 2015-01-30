@@ -18,17 +18,28 @@
       <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
     </video><br />
 -->
-    <div id="video-list">
-      {{#each videos}}
-      <div class='grid-3'>
-        <div class="row" id="{{day}}">
-          {{day}} -- {{song}} by {{artist}}
-        </div>
-        <div class="video-row" id="{{day}}-video">
-          <a href="/day/{{day}}"><img src="{{imageUrl}}"></a>
-        </div>
+    <div id="top">
+      <h1>All About That Bass</h1>
+      One man's struggle to not suck at the bass.  Still a better love story than twilight.
+    </div>
+    <div id="container">
+      <div id="left-rail">
+        <ul>
+          <li><a href="/songs">Songs</a></li>
+          <li><a href="/days">Days</a></li>
+          <li><a href="/artists">Artists</a></li>
+        </ul>
       </div>
-      {{/each}}
+      <div id="video-list">
+        {{#each videos}}
+        <div class='grid-3'>
+          <div class="video-row" id="{{day}}-video">
+            <a href="/day/{{day}}"><img src="{{imageUrl}}"></a><br />
+            <div class="description">Day {{day}}<br />{{song}} by {{artist}}</div>
+          </div>
+        </div>
+        {{/each}}
+      </div>
     </div>
   </body>
 </html>
