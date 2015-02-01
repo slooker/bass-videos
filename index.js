@@ -28,14 +28,18 @@ server.views({
     
 
 // Read the files we need that never change
-var index = fs.readFileSync('index.hbs').toString();
-var indexTemplate = hogan.compile(index); 
-var day = fs.readFileSync('day.hbs').toString();
-var dayTemplate = hogan.compile(day); 
-var topPartial = fs.readFileSync('topPartial.hbs').toString();
-var topTemplate = hogan.compile(topPartial); 
-var layout = fs.readFileSync('layout.hbs').toString();
-var layoutTemplate = hogan.compile(layout); 
+var indexFile = fs.readFileSync('index.hbs').toString();
+var indexTemplate = hogan.compile(indexFile); 
+var dayFile = fs.readFileSync('day.hbs').toString();
+var dayTemplate = hogan.compile(dayFile); 
+var topPartialFile = fs.readFileSync('topPartial.hbs').toString();
+var topTemplate = hogan.compile(topPartialFile); 
+var layoutFile = fs.readFileSync('layout.hbs').toString();
+var layoutTemplate = hogan.compile(layoutFile); 
+var artistFile = fs.readFileSync('artist.hbs').toString();
+var artistTemplate = hogan.compile(artistFile); 
+var songFile = fs.readFileSync('song.hbs').toString();
+var songTemplate = hogan.compile(songFile); 
 
 // Handle AWS stuff
 var s3 = new AWS.S3(); 
@@ -113,7 +117,7 @@ server.route({
     db.find({}, function(err,videos) {
       videos.sort(compare);
       //console.log(videos);
-      var html = indexTemplate.render({videos: videos}, {layout: layout});
+      var html = indexTemplate.render({videos: videos}, {layout: layoutTemplate});
       reply(html)
     });
   }
@@ -141,7 +145,7 @@ server.route({
   handler: function(request, reply) {
     var file = 'images/'+request.params.file + '.png'
     fs.exists(file, function(exists) {
-      if (!/[^A-Za-z0-9\-\.\'\,]/.test(request.params.file)) {
+      if (/[A-Za-z0-9\-\.\'\,]+/.test(request.params.file)) {
         if (exists) {
           reply.file(file);
         } else {
@@ -154,20 +158,109 @@ server.route({
   }
 });
 
+// TODO: Add some sort of count instead of duplicating the artist names
+server.route({
+  method: 'GET',
+  path: '/artists',
+  handler: function(request, reply) {
+    db.find({}, function(err, videos) {
+      var html = artistTemplate.render({videos: videos}, {layout: layoutTemplate});
+      reply(html);
+    });
+  }
+});
+
+// TODO: Add some sort of count instead of duplicating the song names
+server.route({
+  method: 'GET',
+  path: '/songs',
+  handler: function(request, reply) {
+    db.find({}, function(err, videos) {
+      var html = songTemplate.render({videos: videos}, {layout: layoutTemplate});
+      reply(html);
+    });
+  }
+});
+
+  
+server.route({
+  method: 'GET',
+  path: '/song/{song}',
+  handler: function(request, reply) {
+    var song = request.params.song;
+    if (/[\sA-Za-z0-9\-\.\'\,]+/.test(song)) {
+      db.find({song: song}, function(err, videos) {
+        videos.sort(compare);
+        if (videos.length > 0) {
+          if (videos.length == 1) {
+            var html = dayTemplate.render({videos: [videos[0]]}, {layout: layoutTemplate});
+            reply(html)
+          } else if (videos.length > 1) {
+            var html = indexTemplate.render({videos: videos}, {layout: layoutTemplate});
+            reply(html)
+          }
+        } else {
+          console.log("no songs found");
+          reply("No song found.").code(404);
+        }
+      });
+    } else {
+      console.log("Failed test");
+      reply("No song found.").code(404);
+    }
+  }
+});
+
+server.route({
+  method: 'GET',
+  path: '/artist/{artist}',
+  handler: function(request, reply) {
+    var artist = request.params.artist;
+    if (/[\sA-Za-z0-9\-\.\'\,]+/.test(artist)) {
+      db.find({artist: artist}, function(err, videos) {
+        videos.sort(compare);
+        if (videos.length > 0) {
+          if (videos.length == 1) {
+            var html = dayTemplate.render({videos: [videos[0]]}, {layout: layoutTemplate});
+            reply(html)
+          } else if (videos.length > 1) {
+            var html = indexTemplate.render({videos: videos}, {layout: layoutTemplate});
+            reply(html)
+          }
+        } else {
+          console.log("no artists found");
+          reply("No artist found.").code(404);
+        }
+      });
+    } else {
+      console.log("Failed test");
+      reply("No artist found.").code(404);
+    }
+  }
+});
+
 server.route({ 
   method: 'GET',
   path: '/day/{day}',
   handler: function(request, reply) {
     var day = request.params.day;
-    db.find({day: day}, function(err, videos) {
-      if (videos.length > 0) {
-        var html = dayTemplate.render({videos: [videos[0]]}, {layout: layout});
-        reply(html)
-      } else {
-        reply("No video found for that day.").code(404);
-      }
-
-    });
+    if (/^\d+$/) {
+      db.find({day: day}, function(err, videos) {
+        if (videos.length > 0) {
+          if (videos.length == 1) {
+            var html = dayTemplate.render({videos: [videos[0]]}, {layout: layoutTemplate});
+            reply(html)
+          } else if (videos.length > 1) {
+            var html = indexTemplate.render({videos: videos}, {layout: layoutTemplate});
+            reply(html)
+          }
+        } else {
+          reply("No video found for that day.").code(404);
+        }
+      });
+    } else {
+      reply("No video found for that day.").code(404);
+    }
   }
 });
 
