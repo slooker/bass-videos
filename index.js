@@ -6,8 +6,6 @@ var Datastore = require('nedb')
   , db = new Datastore({ filename: './data', autoload : true });
 var schedule = require('node-schedule');
 
-
-
 // Schedule the new videos to be checked for every 5 minutes
 var scheduled = schedule.scheduleJob('*/5 * * * *', function() {
   fetchNewObjects();
@@ -28,18 +26,20 @@ server.views({
     
 
 // Read the files we need that never change
-var indexFile = fs.readFileSync('index.hbs').toString();
+var indexFile = fs.readFileSync('templates/index.hbs').toString();
 var indexTemplate = hogan.compile(indexFile); 
-var dayFile = fs.readFileSync('day.hbs').toString();
+var dayFile = fs.readFileSync('templates/day.hbs').toString();
 var dayTemplate = hogan.compile(dayFile); 
-var topPartialFile = fs.readFileSync('topPartial.hbs').toString();
+var topPartialFile = fs.readFileSync('templates/topPartial.hbs').toString();
 var topTemplate = hogan.compile(topPartialFile); 
-var layoutFile = fs.readFileSync('layout.hbs').toString();
+var layoutFile = fs.readFileSync('templates/layout.hbs').toString();
 var layoutTemplate = hogan.compile(layoutFile); 
-var artistFile = fs.readFileSync('artist.hbs').toString();
+var artistFile = fs.readFileSync('templates/artist.hbs').toString();
 var artistTemplate = hogan.compile(artistFile); 
-var songFile = fs.readFileSync('song.hbs').toString();
+var songFile = fs.readFileSync('templates/song.hbs').toString();
 var songTemplate = hogan.compile(songFile); 
+var daysFile = fs.readFileSync('templates/days.hbs').toString();
+var daysTemplate = hogan.compile(daysFile); 
 
 // Handle AWS stuff
 var s3 = new AWS.S3(); 
@@ -236,6 +236,20 @@ server.route({
       console.log("Failed test");
       reply("No artist found.").code(404);
     }
+  }
+});
+
+// TODO: Need to handle days with multiple videos.  It redirects us back to the multiple video page for a day.
+server.route({ 
+  method: 'GET',
+  path: '/days',
+  handler: function(request, reply) {
+    db.find({}, function(err,videos) {
+      videos.sort(compare);
+      //console.log(videos);
+      var html = daysTemplate.render({videos: videos}, {layout: layoutTemplate});
+      reply(html)
+    });
   }
 });
 
