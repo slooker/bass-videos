@@ -3,8 +3,9 @@ var fs = require('fs');
 var hogan = require('hogan');
 var Hapi = require('hapi');
 var Datastore = require('nedb')
-  , db = new Datastore({ filename: './data', autoload : true });
+  , vidDb = new Datastore({ filename: './data/videos', autoload : true })
 var schedule = require('node-schedule');
+var uuid = require('node-uuid');
 
 // Schedule the new videos to be checked for every 5 minutes
 var scheduled = schedule.scheduleJob('*/5 * * * *', function() {
@@ -14,6 +15,17 @@ var scheduled = schedule.scheduleJob('*/5 * * * *', function() {
 // Setup our hapi server
 var server = new Hapi.Server();
 server.connection({ port: 8000 });
+
+server.on('request', function (request, event, tags) {
+
+  // Include the Requestor's IP Address on every log
+  if( !event.remoteAddress ) event.remoteAddress = request.headers['x-forwarded-for'] || request.info.remoteAddress;
+
+  // Put the first part of the URL into the tags
+  if(request && request.url && event && event.tags) event.tags.push(request.url.path.split('/')[1]);
+
+  console.log('%j', event) ;
+});
 /*
 server.views({
   engines: { html: hogan.create() },
@@ -23,7 +35,6 @@ server.views({
   partialsPath: './views/partials'
 });
 */
-    
 
 // Read the files we need that never change
 var indexFile = fs.readFileSync('templates/index.hbs').toString();
@@ -69,7 +80,6 @@ function fetchNewObjects() {
 }
 
 function imageDownload(imageKey) {
-  
   fs.exists(imageKey, function(exists) {
     localKey = imageKey.replace('mp4', 'png').replace(/\s/g,'');
     if (!exists) {
@@ -89,23 +99,42 @@ function addVideo(videoKey) {
   var entry = videoKey.split(" - ");
   var day = entry[0];
   //console.log(url);
-  db.find({day: day}, function (err, docs) {
+  vidDb.find({day: day}, function (err, docs) {
     if (docs.length === 0) { // Don't already have a video with that day (multi videos on same day are appended with .1, .2 etc)
       var artist = entry[1];
       var song = entry[2].replace(".mp4", "");
       var prettyKey = videoKey.replace(".mp4","");
       var videoUrl = baseUrl + bucket + '/' + key;
       var imageUrl ='/images/'+imageKey;
-      db.insert({ day: day, artist: artist, song: song, videoUrl: videoUrl, imageUrl: imageUrl });
+      var id = uuid.v1();
+      vidDb.insert({ id: id, day: day, artist: artist, song: song, videoUrl: videoUrl, imageUrl: imageUrl });
     }
   });
 }
 
 // Sort numerically by day
-function compare(a,b) {
+function compareByDay(a,b) {
   if (a.day < b.day) 
     return -1;
   if (a.day > b.day)
+    return 1
+  return 0;
+}
+
+// Sort alpha by artist 
+function compareByArtist(a,b) {
+  if (a.artist < b.artist) 
+    return -1;
+  if (a.artist > b.artist)
+    return 1
+  return 0;
+}
+
+// Sort alpha by song 
+function compareBySong(a,b) {
+  if (a.song < b.song) 
+    return -1;
+  if (a.song > b.song)
     return 1
   return 0;
 }
@@ -114,9 +143,8 @@ server.route({
   method: 'GET',
   path: '/',
   handler: function(request, reply) {
-    db.find({}, function(err,videos) {
-      videos.sort(compare);
-      //console.log(videos);
+    vidDb.find({}, function(err,videos) {
+      videos.sort(compareByDay);
       var html = indexTemplate.render({videos: videos}, {layout: layoutTemplate});
       reply(html)
     });
@@ -163,7 +191,8 @@ server.route({
   method: 'GET',
   path: '/artists',
   handler: function(request, reply) {
-    db.find({}, function(err, videos) {
+    vidDb.find({}, function(err, videos) {
+      videos.sort(compareByArtist);
       var html = artistTemplate.render({videos: videos}, {layout: layoutTemplate});
       reply(html);
     });
@@ -175,7 +204,23 @@ server.route({
   method: 'GET',
   path: '/songs',
   handler: function(request, reply) {
-    db.find({}, function(err, videos) {
+    vidDb.find({}, function(err, videos) {
+      videos.sort(compareBySong);
+
+      var songCount = {}
+      for (var i = 0; i < videos.length; i++) {
+        //console.log(videos[i]["song"]);
+
+        songCount[videos[i]["song"]] = songCount[videos[i]["song"]] ? songCount[videos[i]["song"]] + 1 : 1;
+        if (songCount[videos[i]["song"]] > 1) {
+          videos.splice(i, 1);
+        } 
+      }
+      videos.forEach(function(vid) {
+
+        vid.count = songCount[vid["song"]];
+      });
+      
       var html = songTemplate.render({videos: videos}, {layout: layoutTemplate});
       reply(html);
     });
@@ -189,8 +234,8 @@ server.route({
   handler: function(request, reply) {
     var song = request.params.song;
     if (/[\sA-Za-z0-9\-\.\'\,]+/.test(song)) {
-      db.find({song: song}, function(err, videos) {
-        videos.sort(compare);
+      vidDb.find({song: song}, function(err, videos) {
+        videos.sort(compareByDay);
         if (videos.length > 0) {
           if (videos.length == 1) {
             var html = dayTemplate.render({videos: [videos[0]]}, {layout: layoutTemplate});
@@ -217,8 +262,8 @@ server.route({
   handler: function(request, reply) {
     var artist = request.params.artist;
     if (/[\sA-Za-z0-9\-\.\'\,]+/.test(artist)) {
-      db.find({artist: artist}, function(err, videos) {
-        videos.sort(compare);
+      vidDb.find({artist: artist}, function(err, videos) {
+        videos.sort(compareByDay);
         if (videos.length > 0) {
           if (videos.length == 1) {
             var html = dayTemplate.render({videos: [videos[0]]}, {layout: layoutTemplate});
@@ -244,10 +289,13 @@ server.route({
   method: 'GET',
   path: '/days',
   handler: function(request, reply) {
-    db.find({}, function(err,videos) {
-      videos.sort(compare);
-      //console.log(videos);
-      var html = daysTemplate.render({videos: videos}, {layout: layoutTemplate});
+    vidDb.find({}, function(err,videos) {
+      videos.sort(compareByDay);
+      var days = {};
+      videos.forEach(function(vid) {
+        days[vid["day"]] = days[vid["day"]] ? days[vid["day"]] + 1 : 1;
+      });
+      var html = daysTemplate.render({videos: videos, days: days}, {layout: layoutTemplate});
       reply(html)
     });
   }
@@ -259,7 +307,7 @@ server.route({
   handler: function(request, reply) {
     var day = request.params.day;
     if (/^\d+$/) {
-      db.find({day: day}, function(err, videos) {
+      vidDb.find({day: day}, function(err, videos) {
         if (videos.length > 0) {
           if (videos.length == 1) {
             var html = dayTemplate.render({videos: [videos[0]]}, {layout: layoutTemplate});
