@@ -112,33 +112,6 @@ function addVideo(videoKey) {
   });
 }
 
-// Sort numerically by day
-function compareByDay(a,b) {
-  if (a.day < b.day) 
-    return -1;
-  if (a.day > b.day)
-    return 1
-  return 0;
-}
-
-// Sort alpha by artist 
-function compareByArtist(a,b) {
-  if (a.artist < b.artist) 
-    return -1;
-  if (a.artist > b.artist)
-    return 1
-  return 0;
-}
-
-// Sort alpha by song 
-function compareBySong(a,b) {
-  if (a.song < b.song) 
-    return -1;
-  if (a.song > b.song)
-    return 1
-  return 0;
-}
-
 server.route({
   method: 'GET',
   path: '/',
