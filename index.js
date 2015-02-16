@@ -144,7 +144,7 @@ server.route({
   path: '/',
   handler: function(request, reply) {
     vidDb.find({}, function(err,videos) {
-      videos.sort(compareByDay);
+      videos = uniqBy(videos, "day", false);
       var html = indexTemplate.render({videos: videos}, {layout: layoutTemplate});
       reply(html)
     });
@@ -186,13 +186,31 @@ server.route({
   }
 });
 
+function uniqBy(uniq, key, dedup) {
+  if (dedup == null) { dedup = true; }
+  uniq.sort(function(a,b){
+    return a[key] < b[key] ? -1 : 1;
+  });
+  //console.log(uniq);
+
+  if (dedup) { 
+    console.log("dedupping");
+    for (var i = uniq.length - 2; i >= 0; i--) {
+      if (uniq[i + 1][key] == uniq[i][key]) {
+        uniq.splice(i, 1);
+      }
+    }
+  }
+  return uniq;
+}
+
 // TODO: Add some sort of count instead of duplicating the artist names
 server.route({
   method: 'GET',
   path: '/artists',
   handler: function(request, reply) {
     vidDb.find({}, function(err, videos) {
-      videos.sort(compareByArtist);
+      videos = uniqBy(videos, "artist");
       var html = artistTemplate.render({videos: videos}, {layout: layoutTemplate});
       reply(html);
     });
@@ -205,21 +223,7 @@ server.route({
   path: '/songs',
   handler: function(request, reply) {
     vidDb.find({}, function(err, videos) {
-      videos.sort(compareBySong);
-
-      var songCount = {}
-      for (var i = 0; i < videos.length; i++) {
-        //console.log(videos[i]["song"]);
-
-        songCount[videos[i]["song"]] = songCount[videos[i]["song"]] ? songCount[videos[i]["song"]] + 1 : 1;
-        if (songCount[videos[i]["song"]] > 1) {
-          videos.splice(i, 1);
-        } 
-      }
-      videos.forEach(function(vid) {
-
-        vid.count = songCount[vid["song"]];
-      });
+      videos = uniqBy(videos, "song"); //.sort(compareBySong);
       
       var html = songTemplate.render({videos: videos}, {layout: layoutTemplate});
       reply(html);
@@ -235,7 +239,7 @@ server.route({
     var song = request.params.song;
     if (/[\sA-Za-z0-9\-\.\'\,]+/.test(song)) {
       vidDb.find({song: song}, function(err, videos) {
-        videos.sort(compareByDay);
+        videos = uniqBy(videos, "song", false);
         if (videos.length > 0) {
           if (videos.length == 1) {
             var html = dayTemplate.render({videos: [videos[0]]}, {layout: layoutTemplate});
@@ -263,7 +267,7 @@ server.route({
     var artist = request.params.artist;
     if (/[\sA-Za-z0-9\-\.\'\,]+/.test(artist)) {
       vidDb.find({artist: artist}, function(err, videos) {
-        videos.sort(compareByDay);
+        videos = uniqBy(videos, "day", false);
         if (videos.length > 0) {
           if (videos.length == 1) {
             var html = dayTemplate.render({videos: [videos[0]]}, {layout: layoutTemplate});
@@ -290,7 +294,7 @@ server.route({
   path: '/days',
   handler: function(request, reply) {
     vidDb.find({}, function(err,videos) {
-      videos.sort(compareByDay);
+      videos = uniqBy(videos, "day", false);
       var days = {};
       videos.forEach(function(vid) {
         days[vid["day"]] = days[vid["day"]] ? days[vid["day"]] + 1 : 1;
