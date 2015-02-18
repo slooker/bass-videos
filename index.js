@@ -126,9 +126,10 @@ server.route({
 
 server.route({ 
   method: 'GET',
-  path: '/bass-videos.css',
+  path: '/css/{file}.css',
   handler: function(request, reply) {
-    reply.file('bass-videos.css');
+    
+    reply.file('css/'+request.params.file + ".css");
   }
 });
 
