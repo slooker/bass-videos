@@ -5,7 +5,6 @@ var Hapi = require('hapi');
 var Datastore = require('nedb')
   , vidDb = new Datastore({ filename: './data/videos', autoload : true })
 var schedule = require('node-schedule');
-var uuid = require('node-uuid');
 
 // Schedule the new videos to be checked for every 5 minutes
 var scheduled = schedule.scheduleJob('*/5 * * * *', function() {
@@ -106,8 +105,7 @@ function addVideo(videoKey) {
       var prettyKey = videoKey.replace(".mp4","");
       var videoUrl = baseUrl + bucket + '/' + key;
       var imageUrl ='/images/'+imageKey;
-      var id = uuid.v1();
-      vidDb.insert({ id: id, day: day, artist: artist, song: song, videoUrl: videoUrl, imageUrl: imageUrl });
+      vidDb.insert({ day: day, artist: artist, song: song, videoUrl: videoUrl, imageUrl: imageUrl });
     }
   });
 }
@@ -285,7 +283,7 @@ server.route({
   handler: function(request, reply) {
     var id = request.params.id;
     if (/^\w+$/) {
-      vidDb.find({id: id}, function(err, videos) {
+      vidDb.find({_id: id}, function(err, videos) {
         if (videos.length > 0) {
           if (videos.length == 1) {
             var html = dayTemplate.render({videos: [videos[0]]}, {layout: layoutTemplate});
