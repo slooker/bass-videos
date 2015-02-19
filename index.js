@@ -281,11 +281,11 @@ server.route({
 
 server.route({ 
   method: 'GET',
-  path: '/day/{day}',
+  path: '/day/{id}',
   handler: function(request, reply) {
-    var day = request.params.day;
-    if (/^\d+$/) {
-      vidDb.find({day: day}, function(err, videos) {
+    var id = request.params.id;
+    if (/^\w+$/) {
+      vidDb.find({id: id}, function(err, videos) {
         if (videos.length > 0) {
           if (videos.length == 1) {
             var html = dayTemplate.render({videos: [videos[0]]}, {layout: layoutTemplate});
