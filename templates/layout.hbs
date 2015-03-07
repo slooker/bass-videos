@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html xmlns:og="http://ogp.me/ns#">
-  <head prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb# video: http://ogp.me/ns/video#">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:og="http://ogp.me/ns#" xmlns:fb="http://www.facebook.com/2008/fbml">
+  <head>
     <link href="/css/bass-videos.css" rel="stylesheet">
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <!--    <link href="/css/bootstrap.min.css" rel="stylesheet"> -->
     <script src="/bass-videos.js"></script>
     <title>Bass Videos</title>
     <link rel="image_src" href="{{videos.0.imageUrl}}" />
-    <meta property="og:description" content="{{videos.0.song}} by {{videos.0.artist}}" />
-    <meta property="og:video" content="{{videos.0.videoUrl}}" />
-    <meta property="og:url" content="{{videos.0.videoUrl}}" />
+    <meta property="og:image" content="http://slooker.us{{videos.0.imageUrl}}" />
+    <meta property="og:description" content="Bass Videos" />
+    <meta property="og:title" content="{{videos.0.song}} by {{videos.0.artist}}" />
   </head>
   <body>
 <!--
