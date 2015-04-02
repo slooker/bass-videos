@@ -1,7 +1,12 @@
 {{< layout}}
 {{$content}}
         {{#videos}}
-          <a href="/song/{{song}}" class="songLink">{{song}} by {{artist}}</a><br><br>
+        <div class='grid-3'>
+          <div class="video-row">
+            <a href="/song/{{song}}"><img src="{{imageUrl}}" alt="First frame of day {{day}} playing {{song}} by {{artist}}"></a><br />
+            <div class="description">{{song}} by {{artist}}</div>
+          </div>
+        </div>
         {{/videos}}
 {{/content}}
 {{/layout}}

@@ -1,14 +1,14 @@
 {{< layout}}
 {{$content}}
-      <div id="video-list">
         {{#videos}}
         <div class='grid-3'>
           <div class="video-row">
             <a href="/day/{{_id}}"><img src="{{imageUrl}}" alt="First frame of day {{day}} playing {{song}} by {{artist}}"></a><br />
-            <div class="description">Day {{day}}<br />{{song}} by {{artist}}</div>
+            <div class="description">Day {{day}}<br>{{song}} by {{artist}}</div>
           </div>
         </div>
         {{/videos}}
-      </div>
 {{/content}}
 {{/layout}}
+
+

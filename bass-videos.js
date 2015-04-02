@@ -25,15 +25,6 @@ server.on('request', function (request, event, tags) {
 
   console.log('%j', event) ;
 });
-/*
-server.views({
-  engines: { html: hogan.create() },
-  path: './views',
-  layoutPath: './views/layout',
-  layout: true,
-  partialsPath: './views/partials'
-});
-*/
 
 // Read the files we need that never change
 var indexFile = fs.readFileSync('templates/index.hbs').toString();
@@ -101,6 +92,7 @@ function addVideo(videoKey) {
   vidDb.find({day: day}, function (err, docs) {
     if (docs.length === 0) { // Don't already have a video with that day (multi videos on same day are appended with .1, .2 etc)
       var artist = entry[1];
+      console.log(entry);
       var song = entry[2].replace(".mp4", "");
       var prettyKey = videoKey.replace(".mp4","");
       var videoUrl = baseUrl + bucket + '/' + key;
@@ -136,6 +128,15 @@ server.route({
   path: '/bass-videos.js',
   handler: function(request, reply) {
     reply.file('bass-videos.js');
+  }
+});
+
+server.route({
+  method: 'GET',
+  path: '/flame.svg',
+  handler: function(request, reply) {
+    reply.file('images/nodestack.svg');
+
   }
 });
 
@@ -298,6 +299,17 @@ server.route({
     } else {
       reply("No video found for that day.").code(404);
     }
+  }
+});
+
+server.route({
+  method: 'GET',
+  path: '/test',
+  handler: function(request, reply) {
+    var testFile = fs.readFileSync('templates/test.hbs').toString();
+    var testTemplate = hogan.compile(testFile); 
+    var html = testTemplate.render();
+    reply(html)
   }
 });
 

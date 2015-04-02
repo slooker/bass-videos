@@ -1,0 +1,2037 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="930" onload="init(evt)" viewBox="0 0 1200 930" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs >
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	.func_g:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	var details, svg;
+	function init(evt) { 
+		details = document.getElementById("details").firstChild; 
+		svg = document.getElementsByTagName("svg")[0];
+	}
+	function s(info) { details.nodeValue = "Function: " + info; }
+	function c() { details.nodeValue = ' '; }
+	function find_child(parent, name, attr) {
+		var children = parent.childNodes;
+		for (var i=0; i<children.length;i++) {
+			if (children[i].tagName == name)
+				return (attr != undefined) ? children[i].attributes[attr].value : children[i];
+		}
+		return;
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_"+attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_"+attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_"+attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes["width"].value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)/,"");
+		t.attributes["x"].value = parseFloat(r.attributes["x"].value) +3;
+		
+		// Smaller than this size won't fit anything
+		if (w < 2*12*0.59) {
+			t.textContent = "";
+			return;
+		}
+		
+		t.textContent = txt;
+		// Fit in full text width
+		if (/^ *$/.test(txt) || t.getSubStringLength(0, txt.length) < w)
+			return;
+		
+		for (var x=txt.length-2; x>0; x--) {
+			if (t.getSubStringLength(0, x+2) <= w) { 
+				t.textContent = txt.substring(0,x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes["x"] != undefined) {
+				orig_save(e, "x");
+				e.attributes["x"].value = (parseFloat(e.attributes["x"].value) - x - 10) * ratio + 10;
+				if(e.tagName == "text") e.attributes["x"].value = find_child(e.parentNode, "rect", "x") + 3;
+			}
+			if (e.attributes["width"] != undefined) {
+				orig_save(e, "width");
+				e.attributes["width"].value = parseFloat(e.attributes["width"].value) * ratio;
+			}
+		}
+		
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_child(c[i], x-10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes["x"] != undefined) {
+				orig_save(e, "x");
+				e.attributes["x"].value = 10;
+			}
+			if (e.attributes["width"] != undefined) {
+				orig_save(e, "width");
+				e.attributes["width"].value = parseInt(svg.width.baseVal.value) - (10*2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) { 
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr["width"].value);
+		var xmin = parseFloat(attr["x"].value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr["y"].value);
+		var ratio = (svg.width.baseVal.value - 2*10) / width;
+		
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+		
+		var unzoombtn = document.getElementById("unzoom");
+		unzoombtn.style["opacity"] = "1.0";
+		
+		var el = document.getElementsByTagName("g");
+		for(var i=0;i<el.length;i++){
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a["x"].value);
+			var ew = parseFloat(a["width"].value);
+			// Is it an ancestor
+			if (0 == 0) {
+				var upstack = parseFloat(a["y"].value) > ymin;
+			} else {
+				var upstack = parseFloat(a["y"].value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.style["opacity"] = "0.5";
+					zoom_parent(e);
+					e.onclick = function(e){unzoom(); zoom(this);};
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.style["display"] = "none";
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.style["display"] = "none";
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					e.onclick = function(e){zoom(this);};
+					update_text(e);
+				}
+			}
+		}
+	}
+	function unzoom() {
+		var unzoombtn = document.getElementById("unzoom");
+		unzoombtn.style["opacity"] = "0.0";
+		
+		var el = document.getElementsByTagName("g");
+		for(i=0;i<el.length;i++) {
+			el[i].style["display"] = "block";
+			el[i].style["opacity"] = "1";
+			zoom_reset(el[i]);
+			update_text(el[i]);
+		}
+	}	
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="930.0" fill="url(#background)"  />
+<text text-anchor="middle" x="600.00" y="24" font-size="17" font-family="Verdana" fill="rgb(0,0,0)"  >Flame Graph</text>
+<text text-anchor="" x="10.00" y="913" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="details" > </text>
+<text text-anchor="" x="10.00" y="24" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="unzoom" onclick="unzoom()" style="opacity:0.0;cursor:pointer" >Reset Zoom</text>
+<g class="func_g" onmouseover="s('v8::internal::GetOptimizedCodeNow (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::GetOptimizedCodeNow (1 samples, 1.52%)</title><rect x="188.8" y="561" width="17.9" height="15.0" fill="rgb(233,97,34)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::VisitStatements (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::VisitStatements (1 samples, 1.52%)</title><rect x="600.0" y="193" width="17.9" height="15.0" fill="rgb(219,38,2)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="203.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Execution::New (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Execution::New (3 samples, 4.55%)</title><rect x="224.5" y="721" width="53.7" height="15.0" fill="rgb(208,1,25)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="731.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::i..</text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="492.7" y="577" width="17.9" height="15.0" fill="rgb(229,69,44)" rx="2" ry="2" />
+<text text-anchor="" x="495.73" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="403.3" y="433" width="17.9" height="15.0" fill="rgb(216,215,13)" rx="2" ry="2" />
+<text text-anchor="" x="406.33" y="443.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::VisitStatements (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::VisitStatements (1 samples, 1.52%)</title><rect x="188.8" y="497" width="17.9" height="15.0" fill="rgb(246,203,31)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::LookupIterator::TransitionToDataProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::LookupIterator::TransitionToDataProperty (1 samples, 1.52%)</title><rect x="582.1" y="193" width="17.9" height="15.0" fill="rgb(206,197,34)" rx="2" ry="2" />
+<text text-anchor="" x="585.12" y="203.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:_writableState (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:_writableState (1 samples, 1.52%)</title><rect x="1011.2" y="529" width="17.9" height="15.0" fill="rgb(238,4,6)" rx="2" ry="2" />
+<text text-anchor="" x="1014.21" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Heap::Scavenge (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Heap::Scavenge (1 samples, 1.52%)</title><rect x="850.3" y="273" width="17.9" height="15.0" fill="rgb(249,194,2)" rx="2" ry="2" />
+<text text-anchor="" x="853.30" y="283.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::AsyncWrap::MakeCallback (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::AsyncWrap::MakeCallback (1 samples, 1.52%)</title><rect x="1172.1" y="769" width="17.9" height="15.0" fill="rgb(209,81,36)" rx="2" ry="2" />
+<text text-anchor="" x="1175.12" y="779.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Factory::NewFillerObject (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Factory::NewFillerObject (1 samples, 1.52%)</title><rect x="403.3" y="529" width="17.9" height="15.0" fill="rgb(205,10,23)" rx="2" ry="2" />
+<text text-anchor="" x="406.33" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*uniqBy /home/slooker/bass-videos/bass-videos.js:162 (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*uniqBy /home/slooker/bass-videos/bass-videos.js:162 (2 samples, 3.03%)</title><rect x="975.5" y="497" width="35.7" height="15.0" fill="rgb(233,181,42)" rx="2" ry="2" />
+<text text-anchor="" x="978.45" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Laz..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::FixedArray::CopySize (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::FixedArray::CopySize (1 samples, 1.52%)</title><rect x="224.5" y="385" width="17.9" height="15.0" fill="rgb(213,21,13)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="395.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~ /home/slooker/bass-videos/node_modules/nedb/lib/datastore.js:416 (18 samples, 27.27%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~ /home/slooker/bass-videos/node_modules/nedb/lib/datastore.js:416 (18 samples, 27.27%)</title><rect x="760.9" y="593" width="321.8" height="15.0" fill="rgb(232,30,23)" rx="2" ry="2" />
+<text text-anchor="" x="763.91" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompile:~ /home/slooker/bass-videos/nod..</text>
+</g>
+<g class="func_g" onmouseover="s('ep_poll (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>ep_poll (7 samples, 10.61%)</title><rect x="10.0" y="737" width="125.2" height="15.0" fill="rgb(219,203,34)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="747.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >ep_poll</text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="403.3" y="561" width="17.9" height="15.0" fill="rgb(228,46,10)" rx="2" ry="2" />
+<text text-anchor="" x="406.33" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::StaticNewSpaceVisitorv8::internal::NewSpaceScavenger::VisitJSFunction (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::StaticNewSpaceVisitorv8::internal::NewSpaceScavenger::VisitJSFunction (1 samples, 1.52%)</title><rect x="850.3" y="241" width="17.9" height="15.0" fill="rgb(240,198,2)" rx="2" ry="2" />
+<text text-anchor="" x="853.30" y="251.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="868.2" y="529" width="17.9" height="15.0" fill="rgb(222,227,51)" rx="2" ry="2" />
+<text text-anchor="" x="871.18" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (2 samples, 3.03%)</title><rect x="975.5" y="513" width="35.7" height="15.0" fill="rgb(253,15,54)" rx="2" ry="2" />
+<text text-anchor="" x="978.45" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Bui..</text>
+</g>
+<g class="func_g" onmouseover="s('all (66 samples, 100%)')" onmouseout="c()" onclick="zoom(this)">
+<title>all (66 samples, 100%)</title><rect x="10.0" y="881" width="1180.0" height="15.0" fill="rgb(246,3,51)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="891.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Invoke (4 samples, 6.06%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Invoke (4 samples, 6.06%)</title><rect x="278.2" y="689" width="71.5" height="15.0" fill="rgb(235,161,38)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="699.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::inte..</text>
+</g>
+<g class="func_g" onmouseover="s('uv__stream_io (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>uv__stream_io (5 samples, 7.58%)</title><rect x="278.2" y="785" width="89.4" height="15.0" fill="rgb(241,206,48)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="795.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >uv__stream..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*finishMaybe _stream_writable.js:478 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*finishMaybe _stream_writable.js:478 (1 samples, 1.52%)</title><rect x="349.7" y="481" width="17.9" height="15.0" fill="rgb(225,104,27)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Heap::Allocate (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Heap::Allocate (1 samples, 1.52%)</title><rect x="921.8" y="449" width="17.9" height="15.0" fill="rgb(236,145,32)" rx="2" ry="2" />
+<text text-anchor="" x="924.82" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Heap::DoScavenge (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Heap::DoScavenge (1 samples, 1.52%)</title><rect x="850.3" y="257" width="17.9" height="15.0" fill="rgb(254,180,0)" rx="2" ry="2" />
+<text text-anchor="" x="853.30" y="267.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:JSEntryTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:JSEntryTrampoline (1 samples, 1.52%)</title><rect x="457.0" y="209" width="17.8" height="15.0" fill="rgb(250,164,5)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="219.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (2 samples, 3.03%)</title><rect x="439.1" y="593" width="35.7" height="15.0" fill="rgb(232,94,46)" rx="2" ry="2" />
+<text text-anchor="" x="442.09" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Bui..</text>
+</g>
+<g class="func_g" onmouseover="s('StoreIC:domain (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>StoreIC:domain (1 samples, 1.52%)</title><rect x="492.7" y="513" width="17.9" height="15.0" fill="rgb(250,165,11)" rx="2" ry="2" />
+<text text-anchor="" x="495.73" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadMegamorphic:0 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadMegamorphic:0 (1 samples, 1.52%)</title><rect x="153.0" y="561" width="17.9" height="15.0" fill="rgb(218,113,15)" rx="2" ry="2" />
+<text text-anchor="" x="156.03" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="492.7" y="545" width="17.9" height="15.0" fill="rgb(225,149,14)" rx="2" ry="2" />
+<text text-anchor="" x="495.73" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::JSObject::MigrateToMap (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::JSObject::MigrateToMap (3 samples, 4.55%)</title><rect x="814.5" y="369" width="53.7" height="15.0" fill="rgb(245,78,3)" rx="2" ry="2" />
+<text text-anchor="" x="817.55" y="379.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::i..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::FunctionCallbackArguments::Call (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::FunctionCallbackArguments::Call (3 samples, 4.55%)</title><rect x="278.2" y="513" width="53.6" height="15.0" fill="rgb(227,176,0)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::i..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Execution::Call (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Execution::Call (1 samples, 1.52%)</title><rect x="457.0" y="257" width="17.8" height="15.0" fill="rgb(223,193,28)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="267.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (7 samples, 10.61%)</title><rect x="528.5" y="497" width="125.1" height="15.0" fill="rgb(231,145,40)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:Argumen..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*Buffer buffer.js:48 (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*Buffer buffer.js:48 (2 samples, 3.03%)</title><rect x="367.6" y="593" width="35.7" height="15.0" fill="rgb(245,156,23)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Laz..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~filter native array.js:835 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~filter native array.js:835 (1 samples, 1.52%)</title><rect x="689.4" y="513" width="17.9" height="15.0" fill="rgb(242,160,45)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Execution::Call (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Execution::Call (5 samples, 7.58%)</title><rect x="135.2" y="721" width="89.3" height="15.0" fill="rgb(211,6,20)" rx="2" ry="2" />
+<text text-anchor="" x="138.15" y="731.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::intern..</text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:ended (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:ended (1 samples, 1.52%)</title><rect x="421.2" y="609" width="17.9" height="15.0" fill="rgb(223,218,21)" rx="2" ry="2" />
+<text text-anchor="" x="424.21" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="600.0" y="305" width="17.9" height="15.0" fill="rgb(231,180,48)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="315.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="1136.4" y="641" width="17.8" height="15.0" fill="rgb(241,150,46)" rx="2" ry="2" />
+<text text-anchor="" x="1139.36" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:JSConstructEntryTrampoline (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:JSConstructEntryTrampoline (3 samples, 4.55%)</title><rect x="224.5" y="673" width="53.7" height="15.0" fill="rgb(205,70,5)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="683.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Built..</text>
+</g>
+<g class="func_g" onmouseover="s('void v8::internal::ScavengingVisitor (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>void v8::internal::ScavengingVisitor (1 samples, 1.52%)</title><rect x="403.3" y="449" width="17.9" height="15.0" fill="rgb(219,96,14)" rx="2" ry="2" />
+<text text-anchor="" x="406.33" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HGraphBuilder::CreateGraph (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HGraphBuilder::CreateGraph (1 samples, 1.52%)</title><rect x="600.0" y="225" width="17.9" height="15.0" fill="rgb(206,63,26)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="235.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="492.7" y="529" width="17.9" height="15.0" fill="rgb(233,169,54)" rx="2" ry="2" />
+<text text-anchor="" x="495.73" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:_events (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:_events (1 samples, 1.52%)</title><rect x="474.8" y="641" width="17.9" height="15.0" fill="rgb(205,18,51)" rx="2" ry="2" />
+<text text-anchor="" x="477.85" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:IN native runtime.js:204 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:IN native runtime.js:204 (1 samples, 1.52%)</title><rect x="868.2" y="513" width="17.9" height="15.0" fill="rgb(250,195,29)" rx="2" ry="2" />
+<text text-anchor="" x="871.18" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Factory::NewJSObjectFromMap (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Factory::NewJSObjectFromMap (1 samples, 1.52%)</title><rect x="921.8" y="481" width="17.9" height="15.0" fill="rgb(209,60,41)" rx="2" ry="2" />
+<text text-anchor="" x="924.82" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (1 samples, 1.52%)</title><rect x="760.9" y="481" width="17.9" height="15.0" fill="rgb(236,183,3)" rx="2" ry="2" />
+<text text-anchor="" x="763.91" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (5 samples, 7.58%)</title><rect x="778.8" y="481" width="89.4" height="15.0" fill="rgb(227,140,50)" rx="2" ry="2" />
+<text text-anchor="" x="781.79" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Stub:CEntr..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Invoke (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Invoke (5 samples, 7.58%)</title><rect x="135.2" y="705" width="89.3" height="15.0" fill="rgb(231,60,44)" rx="2" ry="2" />
+<text text-anchor="" x="138.15" y="715.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::intern..</text>
+</g>
+<g class="func_g" onmouseover="s('Stub:apply (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:apply (2 samples, 3.03%)</title><rect x="439.1" y="561" width="35.7" height="15.0" fill="rgb(226,193,24)" rx="2" ry="2" />
+<text text-anchor="" x="442.09" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Stu..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*Socket.write net.js:621 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*Socket.write net.js:621 (1 samples, 1.52%)</title><rect x="457.0" y="481" width="17.8" height="15.0" fill="rgb(247,191,38)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::SetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::SetProperty (1 samples, 1.52%)</title><rect x="582.1" y="241" width="17.9" height="15.0" fill="rgb(228,123,25)" rx="2" ry="2" />
+<text text-anchor="" x="585.12" y="251.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::JSObject::GetElementsTransitionMap (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::JSObject::GetElementsTransitionMap (1 samples, 1.52%)</title><rect x="689.4" y="465" width="17.9" height="15.0" fill="rgb(240,44,53)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::BuildStore (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::BuildStore (1 samples, 1.52%)</title><rect x="600.0" y="145" width="17.9" height="15.0" fill="rgb(245,20,48)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="155.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:_tickDomainCallback node.js:368 (18 samples, 27.27%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:_tickDomainCallback node.js:368 (18 samples, 27.27%)</title><rect x="367.6" y="673" width="321.8" height="15.0" fill="rgb(244,24,40)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="683.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompile:_tickDomainCallback node.js:368</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::VisitForEffect (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::VisitForEffect (1 samples, 1.52%)</title><rect x="600.0" y="177" width="17.9" height="15.0" fill="rgb(237,227,26)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="187.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::Start (66 samples, 100.00%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::Start (66 samples, 100.00%)</title><rect x="10.0" y="833" width="1180.0" height="15.0" fill="rgb(229,72,22)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="843.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >node::Start</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (3 samples, 4.55%)</title><rect x="278.2" y="641" width="53.6" height="15.0" fill="rgb(219,226,6)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Built..</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:FunctionApply (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:FunctionApply (1 samples, 1.52%)</title><rect x="492.7" y="625" width="17.9" height="15.0" fill="rgb(244,58,22)" rx="2" ry="2" />
+<text text-anchor="" x="495.73" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::V8::GetEternal (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::V8::GetEternal (1 samples, 1.52%)</title><rect x="1172.1" y="753" width="17.9" height="15.0" fill="rgb(245,91,28)" rx="2" ry="2" />
+<text text-anchor="" x="1175.12" y="763.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="474.8" y="497" width="17.9" height="15.0" fill="rgb(217,64,35)" rx="2" ry="2" />
+<text text-anchor="" x="477.85" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (4 samples, 6.06%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (4 samples, 6.06%)</title><rect x="367.6" y="625" width="71.5" height="15.0" fill="rgb(209,147,8)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[unknown]</text>
+</g>
+<g class="func_g" onmouseover="s('uv__read (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>uv__read (5 samples, 7.58%)</title><rect x="278.2" y="769" width="89.4" height="15.0" fill="rgb(227,0,20)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="779.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >uv__read</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:* /home/slooker/bass-videos/node_modules/nedb/lib/model.js:124 (6 samples, 9.09%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:* /home/slooker/bass-videos/node_modules/nedb/lib/model.js:124 (6 samples, 9.09%)</title><rect x="760.9" y="497" width="107.3" height="15.0" fill="rgb(209,26,26)" rx="2" ry="2" />
+<text text-anchor="" x="763.91" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompile:*..</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="600.0" y="337" width="17.9" height="15.0" fill="rgb(248,98,49)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="347.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::AsyncWrap::MakeCallback (4 samples, 6.06%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::AsyncWrap::MakeCallback (4 samples, 6.06%)</title><rect x="278.2" y="737" width="71.5" height="15.0" fill="rgb(205,188,19)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="747.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >node::As..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes (1 samples, 1.52%)</title><rect x="188.8" y="385" width="17.9" height="15.0" fill="rgb(230,223,29)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="395.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Compiler::GetOptimizedCode (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Compiler::GetOptimizedCode (1 samples, 1.52%)</title><rect x="600.0" y="273" width="17.9" height="15.0" fill="rgb(218,173,46)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="283.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Heap::AllocateJSObjectFromMap (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Heap::AllocateJSObjectFromMap (1 samples, 1.52%)</title><rect x="921.8" y="465" width="17.9" height="15.0" fill="rgb(248,105,50)" rx="2" ry="2" />
+<text text-anchor="" x="924.82" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (3 samples, 4.55%)</title><rect x="278.2" y="577" width="53.6" height="15.0" fill="rgb(221,187,43)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[unkn..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*maybeReadMore _stream_readable.js:435 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*maybeReadMore _stream_readable.js:435 (1 samples, 1.52%)</title><rect x="403.3" y="593" width="17.9" height="15.0" fill="rgb(215,21,7)" rx="2" ry="2" />
+<text text-anchor="" x="406.33" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::String::WriteUtf8 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::String::WriteUtf8 (1 samples, 1.52%)</title><rect x="367.6" y="497" width="17.9" height="15.0" fill="rgb(253,58,21)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="206.7" y="545" width="17.8" height="15.0" fill="rgb(248,184,8)" rx="2" ry="2" />
+<text text-anchor="" x="209.67" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HStoreNamedField* v8::internal::HGraphBuilder::Newv8::internal::HStoreNamedField, v8::internal::HValue*, v8::internal::HObjectAccess, v8::internal::HValue*, v8::internal::StoreFieldOrKeyedMode (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HStoreNamedField* v8::internal::HGraphBuilder::Newv8::internal::HStoreNamedField, v8::internal::HValue*, v8::internal::HObjectAccess, v8::internal::HValue*, v8::internal::StoreFieldOrKeyedMode (1 samples, 1.52%)</title><rect x="600.0" y="65" width="17.9" height="15.0" fill="rgb(251,194,47)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="75.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="474.8" y="577" width="17.9" height="15.0" fill="rgb(224,56,41)" rx="2" ry="2" />
+<text text-anchor="" x="477.85" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::AddDataProperty (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::AddDataProperty (5 samples, 7.58%)</title><rect x="778.8" y="401" width="89.4" height="15.0" fill="rgb(219,134,15)" rx="2" ry="2" />
+<text text-anchor="" x="781.79" y="411.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::intern..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::Function::Call (4 samples, 6.06%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::Function::Call (4 samples, 6.06%)</title><rect x="278.2" y="721" width="71.5" height="15.0" fill="rgb(221,199,3)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="731.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::Func..</text>
+</g>
+<g class="func_g" onmouseover="s('Function:~ /home/slooker/bass-videos/node_modules/hapi/lib/response.js:1 (8 samples, 12.12%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Function:~ /home/slooker/bass-videos/node_modules/hapi/lib/response.js:1 (8 samples, 12.12%)</title><rect x="510.6" y="593" width="143.0" height="15.0" fill="rgb(212,82,45)" rx="2" ry="2" />
+<text text-anchor="" x="513.61" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Function:~ /home/s..</text>
+</g>
+<g class="func_g" onmouseover="s('perf_event_context_sched_in (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>perf_event_context_sched_in (5 samples, 7.58%)</title><rect x="27.9" y="625" width="89.4" height="15.0" fill="rgb(220,182,26)" rx="2" ry="2" />
+<text text-anchor="" x="30.88" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >perf_event..</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (7 samples, 10.61%)</title><rect x="528.5" y="529" width="125.1" height="15.0" fill="rgb(205,123,7)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:Argumen..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::NameDictionary::FindEntry (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::NameDictionary::FindEntry (1 samples, 1.52%)</title><rect x="617.9" y="289" width="17.9" height="15.0" fill="rgb(247,73,6)" rx="2" ry="2" />
+<text text-anchor="" x="620.88" y="299.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Execution::Call (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Execution::Call (2 samples, 3.03%)</title><rect x="224.5" y="577" width="35.8" height="15.0" fill="rgb(225,209,31)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8:..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*socketOnData _http_client.js:303 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*socketOnData _http_client.js:303 (1 samples, 1.52%)</title><rect x="510.6" y="577" width="17.9" height="15.0" fill="rgb(251,178,13)" rx="2" ry="2" />
+<text text-anchor="" x="513.61" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="582.1" y="289" width="17.9" height="15.0" fill="rgb(254,214,39)" rx="2" ry="2" />
+<text text-anchor="" x="585.12" y="299.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::String::SlowEquals (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::String::SlowEquals (1 samples, 1.52%)</title><rect x="617.9" y="273" width="17.9" height="15.0" fill="rgb(235,147,34)" rx="2" ry="2" />
+<text text-anchor="" x="620.88" y="283.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Execution::Call (44 samples, 66.67%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Execution::Call (44 samples, 66.67%)</title><rect x="367.6" y="737" width="786.6" height="15.0" fill="rgb(223,158,39)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="747.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::internal::Execution::Call</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:JSConstructStubGeneric (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:JSConstructStubGeneric (2 samples, 3.03%)</title><rect x="367.6" y="609" width="35.7" height="15.0" fill="rgb(235,60,5)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Bui..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::GetOptimizedCodeNow (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::GetOptimizedCodeNow (1 samples, 1.52%)</title><rect x="600.0" y="257" width="17.9" height="15.0" fill="rgb(227,125,35)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="267.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*Duplex _stream_duplex.js:41 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*Duplex _stream_duplex.js:41 (1 samples, 1.52%)</title><rect x="206.7" y="609" width="17.8" height="15.0" fill="rgb(227,79,18)" rx="2" ry="2" />
+<text text-anchor="" x="209.67" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~resOnFinish _http_server.js:453 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~resOnFinish _http_server.js:453 (1 samples, 1.52%)</title><rect x="474.8" y="513" width="17.9" height="15.0" fill="rgb(236,213,48)" rx="2" ry="2" />
+<text text-anchor="" x="477.85" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Factory::NewJSArrayWithElements (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Factory::NewJSArrayWithElements (1 samples, 1.52%)</title><rect x="921.8" y="497" width="17.9" height="15.0" fill="rgb(246,168,46)" rx="2" ry="2" />
+<text text-anchor="" x="924.82" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HGraphBuilder::CreateGraph (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HGraphBuilder::CreateGraph (1 samples, 1.52%)</title><rect x="188.8" y="529" width="17.9" height="15.0" fill="rgb(226,132,36)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (2 samples, 3.03%)</title><rect x="439.1" y="529" width="35.7" height="15.0" fill="rgb(245,214,29)" rx="2" ry="2" />
+<text text-anchor="" x="442.09" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[un..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Heap::Scavenge (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Heap::Scavenge (1 samples, 1.52%)</title><rect x="403.3" y="481" width="17.9" height="15.0" fill="rgb(246,152,2)" rx="2" ry="2" />
+<text text-anchor="" x="406.33" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::OptimizedCompileJob::CreateGraph (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::OptimizedCompileJob::CreateGraph (1 samples, 1.52%)</title><rect x="188.8" y="545" width="17.9" height="15.0" fill="rgb(234,165,50)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:JSEntryStub (44 samples, 66.67%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:JSEntryStub (44 samples, 66.67%)</title><rect x="367.6" y="705" width="786.6" height="15.0" fill="rgb(208,19,13)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="715.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Stub:JSEntryStub</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::BuildNamedAccess (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::BuildNamedAccess (1 samples, 1.52%)</title><rect x="188.8" y="433" width="17.9" height="15.0" fill="rgb(242,48,20)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="443.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::BuildMonomorphicAccess (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::BuildMonomorphicAccess (1 samples, 1.52%)</title><rect x="600.0" y="97" width="17.9" height="15.0" fill="rgb(240,29,5)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="107.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~ /home/slooker/bass-videos/node_modules/nedb/lib/executor.js:13 (24 samples, 36.36%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~ /home/slooker/bass-videos/node_modules/nedb/lib/executor.js:13 (24 samples, 36.36%)</title><rect x="689.4" y="641" width="429.1" height="15.0" fill="rgb(205,87,4)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompile:~ /home/slooker/bass-videos/node_modules/nedb/..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*maybeReadMore_ _stream_readable.js:444 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*maybeReadMore_ _stream_readable.js:444 (1 samples, 1.52%)</title><rect x="331.8" y="625" width="17.9" height="15.0" fill="rgb(213,67,13)" rx="2" ry="2" />
+<text text-anchor="" x="334.82" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~OutgoingMessage._storeHeader _http_outgoing.js:195 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~OutgoingMessage._storeHeader _http_outgoing.js:195 (1 samples, 1.52%)</title><rect x="564.2" y="305" width="17.9" height="15.0" fill="rgb(239,58,47)" rx="2" ry="2" />
+<text text-anchor="" x="567.24" y="315.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::Parser::Execute (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::Parser::Execute (3 samples, 4.55%)</title><rect x="278.2" y="497" width="53.6" height="15.0" fill="rgb(231,137,53)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >node:..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::Object::Get (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::Object::Get (1 samples, 1.52%)</title><rect x="1154.2" y="753" width="17.9" height="15.0" fill="rgb(238,186,14)" rx="2" ry="2" />
+<text text-anchor="" x="1157.24" y="763.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:_idlePrev (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:_idlePrev (7 samples, 10.61%)</title><rect x="528.5" y="545" width="125.1" height="15.0" fill="rgb(229,187,50)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Stub:_idlePrev</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::FunctionCallbackArguments::Call (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::FunctionCallbackArguments::Call (1 samples, 1.52%)</title><rect x="260.3" y="609" width="17.9" height="15.0" fill="rgb(213,171,4)" rx="2" ry="2" />
+<text text-anchor="" x="263.30" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:JSEntryTrampoline (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:JSEntryTrampoline (2 samples, 3.03%)</title><rect x="224.5" y="529" width="35.8" height="15.0" fill="rgb(241,111,46)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Bui..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Factory::NewFixedArray (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Factory::NewFixedArray (1 samples, 1.52%)</title><rect x="528.5" y="177" width="17.9" height="15.0" fill="rgb(205,117,16)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="187.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:_events (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:_events (1 samples, 1.52%)</title><rect x="474.8" y="529" width="17.9" height="15.0" fill="rgb(245,191,37)" rx="2" ry="2" />
+<text text-anchor="" x="477.85" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('uv__run_timers (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>uv__run_timers (1 samples, 1.52%)</title><rect x="1172.1" y="801" width="17.9" height="15.0" fill="rgb(230,219,14)" rx="2" ry="2" />
+<text text-anchor="" x="1175.12" y="811.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~socketOnEnd _http_server.js:382 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~socketOnEnd _http_server.js:382 (1 samples, 1.52%)</title><rect x="349.7" y="561" width="17.9" height="15.0" fill="rgb(236,195,8)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="1011.2" y="513" width="17.9" height="15.0" fill="rgb(237,37,32)" rx="2" ry="2" />
+<text text-anchor="" x="1014.21" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('uv__io_poll (20 samples, 30.30%)')" onmouseout="c()" onclick="zoom(this)">
+<title>uv__io_poll (20 samples, 30.30%)</title><rect x="10.0" y="801" width="357.6" height="15.0" fill="rgb(246,135,31)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="811.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >uv__io_poll</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::SetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::SetProperty (1 samples, 1.52%)</title><rect x="296.1" y="241" width="17.8" height="15.0" fill="rgb(209,183,39)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="251.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadIC:_events (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadIC:_events (1 samples, 1.52%)</title><rect x="296.1" y="321" width="17.8" height="15.0" fill="rgb(216,17,30)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="331.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CallICStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CallICStub (1 samples, 1.52%)</title><rect x="546.4" y="353" width="17.8" height="15.0" fill="rgb(223,4,5)" rx="2" ry="2" />
+<text text-anchor="" x="549.36" y="363.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="528.5" y="321" width="17.9" height="15.0" fill="rgb(227,63,25)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="331.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('finish_task_switch (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>finish_task_switch (5 samples, 7.58%)</title><rect x="27.9" y="657" width="89.4" height="15.0" fill="rgb(218,208,30)" rx="2" ry="2" />
+<text text-anchor="" x="30.88" y="667.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >finish_tas..</text>
+</g>
+<g class="func_g" onmouseover="s('Stub:JSConstructEntryStub (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:JSConstructEntryStub (3 samples, 4.55%)</title><rect x="224.5" y="689" width="53.7" height="15.0" fill="rgb(218,188,45)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="699.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Stub:..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~g events.js:194 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~g events.js:194 (1 samples, 1.52%)</title><rect x="474.8" y="625" width="17.9" height="15.0" fill="rgb(225,114,45)" rx="2" ry="2" />
+<text text-anchor="" x="477.85" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime_AllocateInTargetSpace (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime_AllocateInTargetSpace (1 samples, 1.52%)</title><rect x="403.3" y="545" width="17.9" height="15.0" fill="rgb(207,167,15)" rx="2" ry="2" />
+<text text-anchor="" x="406.33" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="349.7" y="545" width="17.9" height="15.0" fill="rgb(229,15,1)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:toType (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:toType (1 samples, 1.52%)</title><rect x="457.0" y="369" width="17.8" height="15.0" fill="rgb(254,199,11)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="379.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*render /home/slooker/bass-videos/node_modules/hogan/node_modules/hogan.js/lib/template.js:40 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*render /home/slooker/bass-videos/node_modules/hogan/node_modules/hogan.js/lib/template.js:40 (1 samples, 1.52%)</title><rect x="1011.2" y="497" width="17.9" height="15.0" fill="rgb(212,42,48)" rx="2" ry="2" />
+<text text-anchor="" x="1014.21" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::GetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::GetProperty (1 samples, 1.52%)</title><rect x="457.0" y="305" width="17.8" height="15.0" fill="rgb(249,172,37)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="315.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Invoke (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Invoke (1 samples, 1.52%)</title><rect x="296.1" y="417" width="17.8" height="15.0" fill="rgb(235,9,50)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="427.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:FastNewClosureStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:FastNewClosureStub (1 samples, 1.52%)</title><rect x="349.7" y="385" width="17.9" height="15.0" fill="rgb(231,59,25)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="395.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*Writable.end _stream_writable.js:436 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*Writable.end _stream_writable.js:436 (1 samples, 1.52%)</title><rect x="349.7" y="497" width="17.9" height="15.0" fill="rgb(219,192,39)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadIC:domain (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadIC:domain (3 samples, 4.55%)</title><rect x="1029.1" y="465" width="53.6" height="15.0" fill="rgb(246,202,41)" rx="2" ry="2" />
+<text text-anchor="" x="1032.09" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LoadI..</text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (3 samples, 4.55%)</title><rect x="278.2" y="561" width="53.6" height="15.0" fill="rgb(229,97,36)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[unkn..</text>
+</g>
+<g class="func_g" onmouseover="s('schedule (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>schedule (5 samples, 7.58%)</title><rect x="27.9" y="689" width="89.4" height="15.0" fill="rgb(216,103,23)" rx="2" ry="2" />
+<text text-anchor="" x="30.88" y="699.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >schedule</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Invoke (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Invoke (1 samples, 1.52%)</title><rect x="349.7" y="673" width="17.9" height="15.0" fill="rgb(246,0,25)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="683.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('http_parser_execute (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>http_parser_execute (3 samples, 4.55%)</title><rect x="278.2" y="481" width="53.6" height="15.0" fill="rgb(231,113,40)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >http_..</text>
+</g>
+<g class="func_g" onmouseover="s('x86_pmu_enable (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>x86_pmu_enable (5 samples, 7.58%)</title><rect x="27.9" y="593" width="89.4" height="15.0" fill="rgb(237,183,13)" rx="2" ry="2" />
+<text text-anchor="" x="30.88" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >x86_pmu_en..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime_CompileOptimized (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime_CompileOptimized (1 samples, 1.52%)</title><rect x="600.0" y="289" width="17.9" height="15.0" fill="rgb(212,89,22)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="299.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::HandlePropertyAssignment (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::HandlePropertyAssignment (1 samples, 1.52%)</title><rect x="188.8" y="465" width="17.9" height="15.0" fill="rgb(229,76,3)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (7 samples, 10.61%)</title><rect x="528.5" y="433" width="125.1" height="15.0" fill="rgb(254,10,10)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="443.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:Argumen..</text>
+</g>
+<g class="func_g" onmouseover="s('uv__stream_eof (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>uv__stream_eof (1 samples, 1.52%)</title><rect x="349.7" y="753" width="17.9" height="15.0" fill="rgb(225,54,21)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="763.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="349.7" y="593" width="17.9" height="15.0" fill="rgb(231,7,24)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:CompileOptimized (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:CompileOptimized (1 samples, 1.52%)</title><rect x="188.8" y="625" width="17.9" height="15.0" fill="rgb(251,167,15)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime::SetObjectProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime::SetObjectProperty (1 samples, 1.52%)</title><rect x="528.5" y="289" width="17.9" height="15.0" fill="rgb(206,33,42)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="299.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:_events (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:_events (1 samples, 1.52%)</title><rect x="349.7" y="465" width="17.9" height="15.0" fill="rgb(211,58,5)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime::DefineObjectProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime::DefineObjectProperty (1 samples, 1.52%)</title><rect x="224.5" y="465" width="17.9" height="15.0" fill="rgb(245,2,10)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="224.5" y="497" width="17.9" height="15.0" fill="rgb(213,214,18)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::BuildNamedAccess (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::BuildNamedAccess (1 samples, 1.52%)</title><rect x="600.0" y="129" width="17.9" height="15.0" fill="rgb(224,38,45)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="139.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*onread net.js:507 (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*onread net.js:507 (3 samples, 4.55%)</title><rect x="278.2" y="625" width="53.6" height="15.0" fill="rgb(254,106,24)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyC..</text>
+</g>
+<g class="func_g" onmouseover="s('void v8::internal::String::WriteToFlatunsigned char (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>void v8::internal::String::WriteToFlatunsigned char (1 samples, 1.52%)</title><rect x="367.6" y="449" width="17.9" height="15.0" fill="rgb(246,198,8)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="671.5" y="657" width="17.9" height="15.0" fill="rgb(250,111,40)" rx="2" ry="2" />
+<text text-anchor="" x="674.52" y="667.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess (1 samples, 1.52%)</title><rect x="600.0" y="113" width="17.9" height="15.0" fill="rgb(233,86,8)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="123.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::ArrayPrototypeHasNoElements (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::ArrayPrototypeHasNoElements (1 samples, 1.52%)</title><rect x="1136.4" y="609" width="17.8" height="15.0" fill="rgb(232,106,35)" rx="2" ry="2" />
+<text text-anchor="" x="1139.36" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('schedule_hrtimeout_range (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>schedule_hrtimeout_range (5 samples, 7.58%)</title><rect x="27.9" y="721" width="89.4" height="15.0" fill="rgb(251,146,22)" rx="2" ry="2" />
+<text text-anchor="" x="30.88" y="731.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >schedule_h..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*Datastore.getCandidates /home/slooker/bass-videos/node_modules/nedb/lib/datastore.js:232 (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*Datastore.getCandidates /home/slooker/bass-videos/node_modules/nedb/lib/datastore.js:232 (2 samples, 3.03%)</title><rect x="689.4" y="593" width="35.8" height="15.0" fill="rgb(250,222,53)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Laz..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Heap::PerformGarbageCollection (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Heap::PerformGarbageCollection (1 samples, 1.52%)</title><rect x="850.3" y="289" width="17.9" height="15.0" fill="rgb(251,14,34)" rx="2" ry="2" />
+<text text-anchor="" x="853.30" y="299.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~Index.getAll /home/slooker/bass-videos/node_modules/nedb/lib/indexes.js:276 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~Index.getAll /home/slooker/bass-videos/node_modules/nedb/lib/indexes.js:276 (1 samples, 1.52%)</title><rect x="707.3" y="577" width="17.9" height="15.0" fill="rgb(218,178,34)" rx="2" ry="2" />
+<text text-anchor="" x="710.27" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:_events (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:_events (1 samples, 1.52%)</title><rect x="349.7" y="529" width="17.9" height="15.0" fill="rgb(249,223,7)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:LoadElementStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:LoadElementStub (1 samples, 1.52%)</title><rect x="242.4" y="513" width="17.9" height="15.0" fill="rgb(208,18,22)" rx="2" ry="2" />
+<text text-anchor="" x="245.42" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadIC:arguments (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadIC:arguments (1 samples, 1.52%)</title><rect x="1118.5" y="641" width="17.9" height="15.0" fill="rgb(238,94,44)" rx="2" ry="2" />
+<text text-anchor="" x="1121.48" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::JSObject::MigrateFastToFast (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::JSObject::MigrateFastToFast (3 samples, 4.55%)</title><rect x="814.5" y="353" width="53.7" height="15.0" fill="rgb(244,42,16)" rx="2" ry="2" />
+<text text-anchor="" x="817.55" y="363.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::i..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::FixedArray::set (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::FixedArray::set (1 samples, 1.52%)</title><rect x="778.8" y="385" width="17.9" height="15.0" fill="rgb(224,30,51)" rx="2" ry="2" />
+<text text-anchor="" x="781.79" y="395.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)</title><rect x="707.3" y="449" width="17.9" height="15.0" fill="rgb(248,227,12)" rx="2" ry="2" />
+<text text-anchor="" x="710.27" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Invoke (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Invoke (2 samples, 3.03%)</title><rect x="224.5" y="561" width="35.8" height="15.0" fill="rgb(253,178,32)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8:..</text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (3 samples, 4.55%)</title><rect x="1029.1" y="529" width="53.6" height="15.0" fill="rgb(229,63,40)" rx="2" ry="2" />
+<text text-anchor="" x="1032.09" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[unkn..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Invoke (44 samples, 66.67%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Invoke (44 samples, 66.67%)</title><rect x="367.6" y="721" width="786.6" height="15.0" fill="rgb(207,5,44)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="731.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::internal::Invoke</text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="457.0" y="353" width="17.8" height="15.0" fill="rgb(218,142,42)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="363.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:FunctionApply (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:FunctionApply (1 samples, 1.52%)</title><rect x="492.7" y="593" width="17.9" height="15.0" fill="rgb(216,179,2)" rx="2" ry="2" />
+<text text-anchor="" x="495.73" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="170.9" y="593" width="17.9" height="15.0" fill="rgb(234,84,1)" rx="2" ry="2" />
+<text text-anchor="" x="173.91" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:app (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:app (1 samples, 1.52%)</title><rect x="564.2" y="353" width="17.9" height="15.0" fill="rgb(220,29,15)" rx="2" ry="2" />
+<text text-anchor="" x="567.24" y="363.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:_tickDomainCallback node.js:368 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:_tickDomainCallback node.js:368 (1 samples, 1.52%)</title><rect x="349.7" y="625" width="17.9" height="15.0" fill="rgb(215,195,35)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('ep_scan_ready_list.isra.9 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>ep_scan_ready_list.isra.9 (1 samples, 1.52%)</title><rect x="10.0" y="721" width="17.9" height="15.0" fill="rgb(249,24,10)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="731.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::GetPropertyWithDefinedGetter (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::GetPropertyWithDefinedGetter (1 samples, 1.52%)</title><rect x="457.0" y="273" width="17.8" height="15.0" fill="rgb(250,47,29)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="283.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="153.0" y="577" width="17.9" height="15.0" fill="rgb(247,146,14)" rx="2" ry="2" />
+<text text-anchor="" x="156.03" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:incoming (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:incoming (1 samples, 1.52%)</title><rect x="296.1" y="353" width="17.8" height="15.0" fill="rgb(249,133,47)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="363.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~Server net.js:988 (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~Server net.js:988 (3 samples, 4.55%)</title><rect x="1029.1" y="449" width="53.6" height="15.0" fill="rgb(251,48,42)" rx="2" ry="2" />
+<text text-anchor="" x="1032.09" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyC..</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="349.7" y="433" width="17.9" height="15.0" fill="rgb(214,110,38)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="443.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime_SetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime_SetProperty (1 samples, 1.52%)</title><rect x="528.5" y="305" width="17.9" height="15.0" fill="rgb(227,223,49)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="315.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::GetPropertyWithAccessor (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::GetPropertyWithAccessor (1 samples, 1.52%)</title><rect x="457.0" y="289" width="17.8" height="15.0" fill="rgb(247,179,41)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="299.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~ _stream_readable.js:903 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~ _stream_readable.js:903 (1 samples, 1.52%)</title><rect x="474.8" y="657" width="17.9" height="15.0" fill="rgb(211,1,39)" rx="2" ry="2" />
+<text text-anchor="" x="477.85" y="667.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('system_call_fastpath (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>system_call_fastpath (7 samples, 10.61%)</title><rect x="10.0" y="769" width="125.2" height="15.0" fill="rgb(245,113,16)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="779.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >system_call_fas..</text>
+</g>
+<g class="func_g" onmouseover="s('Stub:LoadFieldStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:LoadFieldStub (1 samples, 1.52%)</title><rect x="1011.2" y="465" width="17.9" height="15.0" fill="rgb(205,88,6)" rx="2" ry="2" />
+<text text-anchor="" x="1014.21" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (3 samples, 4.55%)</title><rect x="224.5" y="641" width="53.7" height="15.0" fill="rgb(206,227,28)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Stub:..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::OptimizedCompileJob::CreateGraph (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::OptimizedCompileJob::CreateGraph (1 samples, 1.52%)</title><rect x="600.0" y="241" width="17.9" height="15.0" fill="rgb(250,19,12)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="251.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~ _stream_readable.js:903 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~ _stream_readable.js:903 (1 samples, 1.52%)</title><rect x="349.7" y="609" width="17.9" height="15.0" fill="rgb(219,25,17)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Builtin_HandleApiCallConstruct (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Builtin_HandleApiCallConstruct (3 samples, 4.55%)</title><rect x="224.5" y="625" width="53.7" height="15.0" fill="rgb(212,132,3)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::i..</text>
+</g>
+<g class="func_g" onmouseover="s('node::StreamWrap::UpdateWriteQueueSize (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::StreamWrap::UpdateWriteQueueSize (1 samples, 1.52%)</title><rect x="260.3" y="577" width="17.9" height="15.0" fill="rgb(227,176,25)" rx="2" ry="2" />
+<text text-anchor="" x="263.30" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="457.0" y="449" width="17.8" height="15.0" fill="rgb(211,107,32)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Heap::CollectGarbage (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Heap::CollectGarbage (1 samples, 1.52%)</title><rect x="850.3" y="305" width="17.9" height="15.0" fill="rgb(254,220,14)" rx="2" ry="2" />
+<text text-anchor="" x="853.30" y="315.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Execution::Call (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Execution::Call (1 samples, 1.52%)</title><rect x="349.7" y="689" width="17.9" height="15.0" fill="rgb(237,51,5)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="699.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*match /home/slooker/bass-videos/node_modules/nedb/lib/model.js:665 (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*match /home/slooker/bass-videos/node_modules/nedb/lib/model.js:665 (2 samples, 3.03%)</title><rect x="725.2" y="593" width="35.7" height="15.0" fill="rgb(226,48,9)" rx="2" ry="2" />
+<text text-anchor="" x="728.15" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Laz..</text>
+</g>
+<g class="func_g" onmouseover="s('node::AsyncWrap::MakeCallback (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::AsyncWrap::MakeCallback (5 samples, 7.58%)</title><rect x="135.2" y="753" width="89.3" height="15.0" fill="rgb(237,192,37)" rx="2" ry="2" />
+<text text-anchor="" x="138.15" y="763.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >node::Asyn..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~ _stream_readable.js:716 (6 samples, 9.09%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~ _stream_readable.js:716 (6 samples, 9.09%)</title><rect x="367.6" y="657" width="107.2" height="15.0" fill="rgb(248,62,30)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="667.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompile:~..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::JSObject::SetPropertyUsingTransition (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::JSObject::SetPropertyUsingTransition (1 samples, 1.52%)</title><rect x="224.5" y="433" width="17.9" height="15.0" fill="rgb(236,14,13)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="443.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:FunctionApply (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:FunctionApply (2 samples, 3.03%)</title><rect x="153.0" y="609" width="35.8" height="15.0" fill="rgb(219,199,11)" rx="2" ry="2" />
+<text text-anchor="" x="156.03" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Bui..</text>
+</g>
+<g class="func_g" onmouseover="s('__schedule (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>__schedule (5 samples, 7.58%)</title><rect x="27.9" y="673" width="89.4" height="15.0" fill="rgb(206,2,4)" rx="2" ry="2" />
+<text text-anchor="" x="30.88" y="683.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >__schedule</text>
+</g>
+<g class="func_g" onmouseover="s('Stub:symbol (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:symbol (1 samples, 1.52%)</title><rect x="153.0" y="593" width="17.9" height="15.0" fill="rgb(237,149,33)" rx="2" ry="2" />
+<text text-anchor="" x="156.03" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:FunctionApply (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:FunctionApply (1 samples, 1.52%)</title><rect x="349.7" y="577" width="17.9" height="15.0" fill="rgb(224,191,2)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (2 samples, 3.03%)</title><rect x="600.0" y="353" width="35.8" height="15.0" fill="rgb(237,110,50)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="363.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[un..</text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (6 samples, 9.09%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (6 samples, 9.09%)</title><rect x="528.5" y="369" width="107.3" height="15.0" fill="rgb(205,97,46)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="379.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[unknown]</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime_KeyedGetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime_KeyedGetProperty (1 samples, 1.52%)</title><rect x="617.9" y="305" width="17.9" height="15.0" fill="rgb(217,69,3)" rx="2" ry="2" />
+<text text-anchor="" x="620.88" y="315.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Builtin_ArrayShift (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Builtin_ArrayShift (1 samples, 1.52%)</title><rect x="474.8" y="481" width="17.9" height="15.0" fill="rgb(218,121,37)" rx="2" ry="2" />
+<text text-anchor="" x="477.85" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::SetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::SetProperty (1 samples, 1.52%)</title><rect x="528.5" y="257" width="17.9" height="15.0" fill="rgb(253,76,12)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="267.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::LookupIterator::HasProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::LookupIterator::HasProperty (1 samples, 1.52%)</title><rect x="796.7" y="385" width="17.8" height="15.0" fill="rgb(235,56,19)" rx="2" ry="2" />
+<text text-anchor="" x="799.67" y="395.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadIC:_events (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadIC:_events (1 samples, 1.52%)</title><rect x="349.7" y="417" width="17.9" height="15.0" fill="rgb(238,1,25)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="427.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::JSReceiver::GetKeys (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::JSReceiver::GetKeys (1 samples, 1.52%)</title><rect x="725.2" y="529" width="17.8" height="15.0" fill="rgb(228,208,44)" rx="2" ry="2" />
+<text text-anchor="" x="728.15" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('perf_pmu_enable (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>perf_pmu_enable (5 samples, 7.58%)</title><rect x="27.9" y="609" width="89.4" height="15.0" fill="rgb(216,210,5)" rx="2" ry="2" />
+<text text-anchor="" x="30.88" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >perf_pmu_e..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::String::SlowFlatten (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::String::SlowFlatten (1 samples, 1.52%)</title><rect x="367.6" y="465" width="17.9" height="15.0" fill="rgb(224,148,40)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('syscall (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>syscall (7 samples, 10.61%)</title><rect x="10.0" y="785" width="125.2" height="15.0" fill="rgb(239,123,29)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="795.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >syscall</text>
+</g>
+<g class="func_g" onmouseover="s('node::Parser::on_headers_complete (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::Parser::on_headers_complete (1 samples, 1.52%)</title><rect x="296.1" y="465" width="17.8" height="15.0" fill="rgb(241,194,48)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::Buffer::ByteLength (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::Buffer::ByteLength (1 samples, 1.52%)</title><rect x="385.5" y="561" width="17.8" height="15.0" fill="rgb(241,121,25)" rx="2" ry="2" />
+<text text-anchor="" x="388.45" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*internals.Auth.response /home/slooker/bass-videos/node_modules/hapi/lib/auth.js:373 (6 samples, 9.09%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*internals.Auth.response /home/slooker/bass-videos/node_modules/hapi/lib/auth.js:373 (6 samples, 9.09%)</title><rect x="528.5" y="401" width="107.3" height="15.0" fill="rgb(245,190,22)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="411.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompile:*..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::SetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::SetProperty (1 samples, 1.52%)</title><rect x="296.1" y="225" width="17.8" height="15.0" fill="rgb(206,76,20)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="235.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime_OwnKeys (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime_OwnKeys (1 samples, 1.52%)</title><rect x="725.2" y="545" width="17.8" height="15.0" fill="rgb(210,9,25)" rx="2" ry="2" />
+<text text-anchor="" x="728.15" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::AsyncWrap::MakeCallback (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::AsyncWrap::MakeCallback (1 samples, 1.52%)</title><rect x="349.7" y="721" width="17.9" height="15.0" fill="rgb(236,219,51)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="731.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:JSEntryTrampoline (44 samples, 66.67%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:JSEntryTrampoline (44 samples, 66.67%)</title><rect x="367.6" y="689" width="786.6" height="15.0" fill="rgb(235,36,42)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="699.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:JSEntryTrampoline</text>
+</g>
+<g class="func_g" onmouseover="s('Stub:FastNewContextStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:FastNewContextStub (1 samples, 1.52%)</title><rect x="1082.7" y="593" width="17.9" height="15.0" fill="rgb(211,83,46)" rx="2" ry="2" />
+<text text-anchor="" x="1085.73" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*socketOnData _http_client.js:303 (8 samples, 12.12%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*socketOnData _http_client.js:303 (8 samples, 12.12%)</title><rect x="510.6" y="609" width="143.0" height="15.0" fill="rgb(213,171,44)" rx="2" ry="2" />
+<text text-anchor="" x="513.61" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompile:*socke..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~_.intersection /home/slooker/bass-videos/node_modules/nedb/node_modules/underscore/underscore.js:474 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~_.intersection /home/slooker/bass-videos/node_modules/nedb/node_modules/underscore/underscore.js:474 (1 samples, 1.52%)</title><rect x="689.4" y="561" width="17.9" height="15.0" fill="rgb(212,94,45)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::Utf8LengthHelper::Calculate (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::Utf8LengthHelper::Calculate (1 samples, 1.52%)</title><rect x="385.5" y="513" width="17.8" height="15.0" fill="rgb(224,229,0)" rx="2" ry="2" />
+<text text-anchor="" x="388.45" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::HandlePropertyAssignment (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::HandlePropertyAssignment (1 samples, 1.52%)</title><rect x="600.0" y="161" width="17.9" height="15.0" fill="rgb(236,99,28)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="171.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Builtin_ArraySplice (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Builtin_ArraySplice (1 samples, 1.52%)</title><rect x="1136.4" y="625" width="17.8" height="15.0" fill="rgb(222,78,19)" rx="2" ry="2" />
+<text text-anchor="" x="1139.36" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CallApiFunctionStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CallApiFunctionStub (1 samples, 1.52%)</title><rect x="385.5" y="577" width="17.8" height="15.0" fill="rgb(206,126,53)" rx="2" ry="2" />
+<text text-anchor="" x="388.45" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime_CompileOptimized (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime_CompileOptimized (1 samples, 1.52%)</title><rect x="188.8" y="593" width="17.9" height="15.0" fill="rgb(210,23,0)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('__perf_event_task_sched_in (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>__perf_event_task_sched_in (5 samples, 7.58%)</title><rect x="27.9" y="641" width="89.4" height="15.0" fill="rgb(239,0,36)" rx="2" ry="2" />
+<text text-anchor="" x="30.88" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >__perf_eve..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::JSObject::MigrateToMap (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::JSObject::MigrateToMap (1 samples, 1.52%)</title><rect x="260.3" y="481" width="17.9" height="15.0" fill="rgb(224,194,15)" rx="2" ry="2" />
+<text text-anchor="" x="263.30" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:_invalids (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:_invalids (1 samples, 1.52%)</title><rect x="1029.1" y="401" width="17.9" height="15.0" fill="rgb(254,59,45)" rx="2" ry="2" />
+<text text-anchor="" x="1032.09" y="411.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (2 samples, 3.03%)</title><rect x="725.2" y="577" width="35.7" height="15.0" fill="rgb(222,30,35)" rx="2" ry="2" />
+<text text-anchor="" x="728.15" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Laz..</text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (7 samples, 10.61%)</title><rect x="528.5" y="449" width="125.1" height="15.0" fill="rgb(235,82,23)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[unknown]</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="170.9" y="577" width="17.9" height="15.0" fill="rgb(238,119,18)" rx="2" ry="2" />
+<text text-anchor="" x="173.91" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::ParseEncoding (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::ParseEncoding (1 samples, 1.52%)</title><rect x="635.8" y="353" width="17.8" height="15.0" fill="rgb(210,84,7)" rx="2" ry="2" />
+<text text-anchor="" x="638.76" y="363.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:_readableState (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:_readableState (7 samples, 10.61%)</title><rect x="528.5" y="465" width="125.1" height="15.0" fill="rgb(217,179,2)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LoadPolymorphic..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::Function::Call (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::Function::Call (1 samples, 1.52%)</title><rect x="349.7" y="705" width="17.9" height="15.0" fill="rgb(225,195,35)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="715.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (18 samples, 27.27%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (18 samples, 27.27%)</title><rect x="760.9" y="577" width="321.8" height="15.0" fill="rgb(220,162,11)" rx="2" ry="2" />
+<text text-anchor="" x="763.91" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:ArgumentsAdaptorTrampoline</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime_AddPropertyForTemplate (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime_AddPropertyForTemplate (1 samples, 1.52%)</title><rect x="224.5" y="481" width="17.9" height="15.0" fill="rgb(234,169,48)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (3 samples, 4.55%)</title><rect x="278.2" y="593" width="53.6" height="15.0" fill="rgb(238,38,10)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Built..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*OutgoingMessage._send _http_outgoing.js:125 (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*OutgoingMessage._send _http_outgoing.js:125 (2 samples, 3.03%)</title><rect x="439.1" y="513" width="35.7" height="15.0" fill="rgb(227,147,49)" rx="2" ry="2" />
+<text text-anchor="" x="442.09" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Laz..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Compiler::GetOptimizedCode (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Compiler::GetOptimizedCode (1 samples, 1.52%)</title><rect x="188.8" y="577" width="17.9" height="15.0" fill="rgb(216,124,26)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic (1 samples, 1.52%)</title><rect x="188.8" y="401" width="17.9" height="15.0" fill="rgb(243,35,50)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="411.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Execution::ConfigureInstance (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Execution::ConfigureInstance (2 samples, 3.03%)</title><rect x="224.5" y="593" width="35.8" height="15.0" fill="rgb(233,90,3)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8:..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime_SetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime_SetProperty (1 samples, 1.52%)</title><rect x="582.1" y="273" width="17.9" height="15.0" fill="rgb(213,21,29)" rx="2" ry="2" />
+<text text-anchor="" x="585.12" y="283.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime::GetObjectProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime::GetObjectProperty (1 samples, 1.52%)</title><rect x="1154.2" y="737" width="17.9" height="15.0" fill="rgb(249,69,12)" rx="2" ry="2" />
+<text text-anchor="" x="1157.24" y="747.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="921.8" y="529" width="17.9" height="15.0" fill="rgb(233,15,54)" rx="2" ry="2" />
+<text text-anchor="" x="924.82" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (6 samples, 9.09%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (6 samples, 9.09%)</title><rect x="760.9" y="513" width="107.3" height="15.0" fill="rgb(207,49,17)" rx="2" ry="2" />
+<text text-anchor="" x="763.91" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:Argum..</text>
+</g>
+<g class="func_g" onmouseover="s('Stub:FastNewClosureStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:FastNewClosureStub (1 samples, 1.52%)</title><rect x="403.3" y="577" width="17.9" height="15.0" fill="rgb(227,167,39)" rx="2" ry="2" />
+<text text-anchor="" x="406.33" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HStoreNamedField::HStoreNamedField (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HStoreNamedField::HStoreNamedField (1 samples, 1.52%)</title><rect x="600.0" y="49" width="17.9" height="15.0" fill="rgb(227,124,41)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="59.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:ToObject (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:ToObject (1 samples, 1.52%)</title><rect x="957.6" y="529" width="17.9" height="15.0" fill="rgb(222,53,25)" rx="2" ry="2" />
+<text text-anchor="" x="960.58" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime_MoveArrayContents (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime_MoveArrayContents (1 samples, 1.52%)</title><rect x="689.4" y="481" width="17.9" height="15.0" fill="rgb(216,167,42)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="367.6" y="561" width="17.9" height="15.0" fill="rgb(226,17,10)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (3 samples, 4.55%)</title><rect x="1029.1" y="513" width="53.6" height="15.0" fill="rgb(252,141,25)" rx="2" ry="2" />
+<text text-anchor="" x="1032.09" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Built..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~Socket._writeGeneric net.js:629 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~Socket._writeGeneric net.js:629 (1 samples, 1.52%)</title><rect x="457.0" y="433" width="17.8" height="15.0" fill="rgb(221,15,42)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="443.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime_OwnKeys (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime_OwnKeys (1 samples, 1.52%)</title><rect x="921.8" y="513" width="17.9" height="15.0" fill="rgb(214,160,1)" rx="2" ry="2" />
+<text text-anchor="" x="924.82" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="689.4" y="497" width="17.9" height="15.0" fill="rgb(251,4,35)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (3 samples, 4.55%)</title><rect x="278.2" y="609" width="53.6" height="15.0" fill="rgb(221,220,53)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[unkn..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::SetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::SetProperty (1 samples, 1.52%)</title><rect x="260.3" y="529" width="17.9" height="15.0" fill="rgb(237,138,24)" rx="2" ry="2" />
+<text text-anchor="" x="263.30" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::GetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::GetProperty (1 samples, 1.52%)</title><rect x="1154.2" y="721" width="17.9" height="15.0" fill="rgb(227,156,15)" rx="2" ry="2" />
+<text text-anchor="" x="1157.24" y="731.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:* :1 (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:* :1 (3 samples, 4.55%)</title><rect x="1029.1" y="481" width="53.6" height="15.0" fill="rgb(250,218,50)" rx="2" ry="2" />
+<text text-anchor="" x="1032.09" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyC..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::LookupIterator::GetAccessors (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::LookupIterator::GetAccessors (1 samples, 1.52%)</title><rect x="296.1" y="209" width="17.8" height="15.0" fill="rgb(236,74,30)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="219.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="457.0" y="417" width="17.8" height="15.0" fill="rgb(244,51,51)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="427.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::AddDataProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::AddDataProperty (1 samples, 1.52%)</title><rect x="528.5" y="241" width="17.9" height="15.0" fill="rgb(254,68,46)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="251.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('uv__server_io (8 samples, 12.12%)')" onmouseout="c()" onclick="zoom(this)">
+<title>uv__server_io (8 samples, 12.12%)</title><rect x="135.2" y="785" width="143.0" height="15.0" fill="rgb(218,64,2)" rx="2" ry="2" />
+<text text-anchor="" x="138.15" y="795.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >uv__server_io</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*WritableState.onwrite _stream_writable.js:104 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*WritableState.onwrite _stream_writable.js:104 (1 samples, 1.52%)</title><rect x="457.0" y="401" width="17.8" height="15.0" fill="rgb(252,92,20)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="411.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*storeHeader _http_outgoing.js:299 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*storeHeader _http_outgoing.js:299 (1 samples, 1.52%)</title><rect x="564.2" y="289" width="17.9" height="15.0" fill="rgb(229,124,3)" rx="2" ry="2" />
+<text text-anchor="" x="567.24" y="299.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (1 samples, 1.52%)</title><rect x="993.3" y="433" width="17.9" height="15.0" fill="rgb(230,213,23)" rx="2" ry="2" />
+<text text-anchor="" x="996.33" y="443.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:JSEntryStub (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:JSEntryStub (2 samples, 3.03%)</title><rect x="224.5" y="545" width="35.8" height="15.0" fill="rgb(253,7,26)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Stu..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~ /home/slooker/bass-videos/bass-videos.js:197 (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~ /home/slooker/bass-videos/bass-videos.js:197 (2 samples, 3.03%)</title><rect x="975.5" y="529" width="35.7" height="15.0" fill="rgb(224,186,24)" rx="2" ry="2" />
+<text text-anchor="" x="978.45" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Laz..</text>
+</g>
+<g class="func_g" onmouseover="s('node::CheckImmediate (45 samples, 68.18%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::CheckImmediate (45 samples, 68.18%)</title><rect x="367.6" y="785" width="804.5" height="15.0" fill="rgb(205,158,37)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="795.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >node::CheckImmediate</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~WritableState _stream_writable.js:42 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~WritableState _stream_writable.js:42 (1 samples, 1.52%)</title><rect x="206.7" y="561" width="17.8" height="15.0" fill="rgb(229,62,2)" rx="2" ry="2" />
+<text text-anchor="" x="209.67" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CallICStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CallICStub (1 samples, 1.52%)</title><rect x="939.7" y="529" width="17.9" height="15.0" fill="rgb(218,45,34)" rx="2" ry="2" />
+<text text-anchor="" x="942.70" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:JSEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:JSEntryStub (1 samples, 1.52%)</title><rect x="349.7" y="657" width="17.9" height="15.0" fill="rgb(222,204,2)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="667.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::TimerWrap::OnTimeout (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::TimerWrap::OnTimeout (1 samples, 1.52%)</title><rect x="1172.1" y="785" width="17.9" height="15.0" fill="rgb(220,211,34)" rx="2" ry="2" />
+<text text-anchor="" x="1175.12" y="795.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::SetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::SetProperty (1 samples, 1.52%)</title><rect x="582.1" y="225" width="17.9" height="15.0" fill="rgb(254,88,40)" rx="2" ry="2" />
+<text text-anchor="" x="585.12" y="235.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*OutgoingMessage.end _http_outgoing.js:502 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*OutgoingMessage.end _http_outgoing.js:502 (1 samples, 1.52%)</title><rect x="474.8" y="561" width="17.9" height="15.0" fill="rgb(233,140,8)" rx="2" ry="2" />
+<text text-anchor="" x="477.85" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~callback /home/slooker/bass-videos/node_modules/nedb/lib/executor.js:24 (6 samples, 9.09%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~callback /home/slooker/bass-videos/node_modules/nedb/lib/executor.js:24 (6 samples, 9.09%)</title><rect x="975.5" y="561" width="107.2" height="15.0" fill="rgb(238,228,7)" rx="2" ry="2" />
+<text text-anchor="" x="978.45" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompile:~..</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="689.4" y="577" width="17.9" height="15.0" fill="rgb(213,44,13)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:ConfigureTemplateInstance native apinatives.js:63 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:ConfigureTemplateInstance native apinatives.js:63 (1 samples, 1.52%)</title><rect x="224.5" y="513" width="17.9" height="15.0" fill="rgb(219,51,36)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~toString native v8natives.js:129 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~toString native v8natives.js:129 (1 samples, 1.52%)</title><rect x="903.9" y="529" width="17.9" height="15.0" fill="rgb(228,83,45)" rx="2" ry="2" />
+<text text-anchor="" x="906.94" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (4 samples, 6.06%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (4 samples, 6.06%)</title><rect x="153.0" y="657" width="71.5" height="15.0" fill="rgb(213,176,16)" rx="2" ry="2" />
+<text text-anchor="" x="156.03" y="667.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[unknown]</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Factory::ConfigureInstance (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Factory::ConfigureInstance (2 samples, 3.03%)</title><rect x="224.5" y="609" width="35.8" height="15.0" fill="rgb(219,124,27)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8:..</text>
+</g>
+<g class="func_g" onmouseover="s('node::Buffer::ByteLength (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::Buffer::ByteLength (1 samples, 1.52%)</title><rect x="635.8" y="369" width="17.8" height="15.0" fill="rgb(250,225,32)" rx="2" ry="2" />
+<text text-anchor="" x="638.76" y="379.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="689.4" y="545" width="17.9" height="15.0" fill="rgb(209,221,43)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (7 samples, 10.61%)</title><rect x="760.9" y="545" width="125.2" height="15.0" fill="rgb(220,115,42)" rx="2" ry="2" />
+<text text-anchor="" x="763.91" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:Argumen..</text>
+</g>
+<g class="func_g" onmouseover="s('node::StreamWrapCallbacks::DoRead (4 samples, 6.06%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::StreamWrapCallbacks::DoRead (4 samples, 6.06%)</title><rect x="278.2" y="753" width="71.5" height="15.0" fill="rgb(213,25,40)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="763.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >node::St..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~parserOnHeadersComplete _http_common.js:63 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~parserOnHeadersComplete _http_common.js:63 (1 samples, 1.52%)</title><rect x="296.1" y="369" width="17.8" height="15.0" fill="rgb(207,22,26)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="379.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::StringBytes::Size (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::StringBytes::Size (1 samples, 1.52%)</title><rect x="385.5" y="545" width="17.8" height="15.0" fill="rgb(251,44,24)" rx="2" ry="2" />
+<text text-anchor="" x="388.45" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime_GetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime_GetProperty (1 samples, 1.52%)</title><rect x="457.0" y="337" width="17.8" height="15.0" fill="rgb(211,109,4)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="347.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~internals.Server.connection /home/slooker/bass-videos/node_modules/hapi/lib/server.js:105 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~internals.Server.connection /home/slooker/bass-videos/node_modules/hapi/lib/server.js:105 (1 samples, 1.52%)</title><rect x="564.2" y="321" width="17.9" height="15.0" fill="rgb(216,158,54)" rx="2" ry="2" />
+<text text-anchor="" x="567.24" y="331.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime::SetObjectProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime::SetObjectProperty (1 samples, 1.52%)</title><rect x="582.1" y="257" width="17.9" height="15.0" fill="rgb(225,22,54)" rx="2" ry="2" />
+<text text-anchor="" x="585.12" y="267.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:* :1 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:* :1 (1 samples, 1.52%)</title><rect x="1011.2" y="481" width="17.9" height="15.0" fill="rgb(238,197,42)" rx="2" ry="2" />
+<text text-anchor="" x="1014.21" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~finish _http_outgoing.js:520 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~finish _http_outgoing.js:520 (1 samples, 1.52%)</title><rect x="492.7" y="657" width="17.9" height="15.0" fill="rgb(207,23,3)" rx="2" ry="2" />
+<text text-anchor="" x="495.73" y="667.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="296.1" y="289" width="17.8" height="15.0" fill="rgb(250,216,29)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="299.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::LookupIterator::TransitionToDataProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::LookupIterator::TransitionToDataProperty (1 samples, 1.52%)</title><rect x="528.5" y="225" width="17.9" height="15.0" fill="rgb(240,15,33)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="235.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*sort native array.js:618 (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*sort native array.js:618 (2 samples, 3.03%)</title><rect x="975.5" y="481" width="35.7" height="15.0" fill="rgb(209,206,11)" rx="2" ry="2" />
+<text text-anchor="" x="978.45" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Laz..</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArrayShift (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArrayShift (1 samples, 1.52%)</title><rect x="439.1" y="497" width="17.9" height="15.0" fill="rgb(208,8,38)" rx="2" ry="2" />
+<text text-anchor="" x="442.09" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node (66 samples, 100.00%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node (66 samples, 100.00%)</title><rect x="10.0" y="865" width="1180.0" height="15.0" fill="rgb(232,4,27)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="875.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >node</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:FunctionApply (6 samples, 9.09%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:FunctionApply (6 samples, 9.09%)</title><rect x="975.5" y="545" width="107.2" height="15.0" fill="rgb(225,61,17)" rx="2" ry="2" />
+<text text-anchor="" x="978.45" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:Funct..</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (2 samples, 3.03%)</title><rect x="439.1" y="545" width="35.7" height="15.0" fill="rgb(239,24,10)" rx="2" ry="2" />
+<text text-anchor="" x="442.09" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Bui..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~internals.Topo._sort /home/slooker/bass-videos/node_modules/hapi/node_modules/topo/lib/index.js:57 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~internals.Topo._sort /home/slooker/bass-videos/node_modules/hapi/node_modules/topo/lib/index.js:57 (1 samples, 1.52%)</title><rect x="993.3" y="465" width="17.9" height="15.0" fill="rgb(230,42,15)" rx="2" ry="2" />
+<text text-anchor="" x="996.33" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CallApiFunctionStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CallApiFunctionStub (1 samples, 1.52%)</title><rect x="367.6" y="545" width="17.9" height="15.0" fill="rgb(215,56,27)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~Socket net.js:137 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~Socket net.js:137 (1 samples, 1.52%)</title><rect x="206.7" y="625" width="17.8" height="15.0" fill="rgb(219,54,23)" rx="2" ry="2" />
+<text text-anchor="" x="209.67" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::SetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::SetProperty (1 samples, 1.52%)</title><rect x="528.5" y="273" width="17.9" height="15.0" fill="rgb(211,26,36)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="283.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('schedule_hrtimeout_range_clock (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>schedule_hrtimeout_range_clock (5 samples, 7.58%)</title><rect x="27.9" y="705" width="89.4" height="15.0" fill="rgb(241,226,41)" rx="2" ry="2" />
+<text text-anchor="" x="30.88" y="715.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >schedule_h..</text>
+</g>
+<g class="func_g" onmouseover="s('uv_run (66 samples, 100.00%)')" onmouseout="c()" onclick="zoom(this)">
+<title>uv_run (66 samples, 100.00%)</title><rect x="10.0" y="817" width="1180.0" height="15.0" fill="rgb(252,93,51)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="827.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >uv_run</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (5 samples, 7.58%)</title><rect x="886.1" y="545" width="89.4" height="15.0" fill="rgb(238,7,52)" rx="2" ry="2" />
+<text text-anchor="" x="889.06" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompil..</text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (3 samples, 4.55%)</title><rect x="278.2" y="545" width="53.6" height="15.0" fill="rgb(254,67,5)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Stub:..</text>
+</g>
+<g class="func_g" onmouseover="s('void node::Buffer::StringWrite (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>void node::Buffer::StringWrite (1 samples, 1.52%)</title><rect x="367.6" y="529" width="17.9" height="15.0" fill="rgb(213,86,18)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('timespec_add_safe (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>timespec_add_safe (1 samples, 1.52%)</title><rect x="117.3" y="721" width="17.9" height="15.0" fill="rgb(231,189,32)" rx="2" ry="2" />
+<text text-anchor="" x="120.27" y="731.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::MakeCallback (45 samples, 68.18%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::MakeCallback (45 samples, 68.18%)</title><rect x="367.6" y="769" width="804.5" height="15.0" fill="rgb(242,59,47)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="779.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >node::MakeCallback</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:* :1 (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:* :1 (3 samples, 4.55%)</title><rect x="1029.1" y="417" width="53.6" height="15.0" fill="rgb(246,149,8)" rx="2" ry="2" />
+<text text-anchor="" x="1032.09" y="427.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyC..</text>
+</g>
+<g class="func_g" onmouseover="s('Stub:ToObject (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:ToObject (1 samples, 1.52%)</title><rect x="743.0" y="561" width="17.9" height="15.0" fill="rgb(206,219,13)" rx="2" ry="2" />
+<text text-anchor="" x="746.03" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="993.3" y="449" width="17.9" height="15.0" fill="rgb(220,220,4)" rx="2" ry="2" />
+<text text-anchor="" x="996.33" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (3 samples, 4.55%)</title><rect x="1029.1" y="433" width="53.6" height="15.0" fill="rgb(237,119,3)" rx="2" ry="2" />
+<text text-anchor="" x="1032.09" y="443.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[unkn..</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (6 samples, 9.09%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (6 samples, 9.09%)</title><rect x="528.5" y="385" width="107.3" height="15.0" fill="rgb(222,88,46)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="395.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:Argum..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (25 samples, 37.88%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (25 samples, 37.88%)</title><rect x="689.4" y="657" width="447.0" height="15.0" fill="rgb(219,59,7)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="667.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompile:*write /home/slooker/bass-videos/node_modules/aws..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (1 samples, 1.52%)</title><rect x="975.5" y="465" width="17.8" height="15.0" fill="rgb(229,101,0)" rx="2" ry="2" />
+<text text-anchor="" x="978.45" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Builtin_HandleApiCall (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Builtin_HandleApiCall (3 samples, 4.55%)</title><rect x="278.2" y="529" width="53.6" height="15.0" fill="rgb(253,179,31)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::i..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::String::Flatten (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::String::Flatten (1 samples, 1.52%)</title><rect x="367.6" y="481" width="17.9" height="15.0" fill="rgb(220,58,51)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Factory::NewFunctionFromSharedFunctionInfo (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Factory::NewFunctionFromSharedFunctionInfo (1 samples, 1.52%)</title><rect x="206.7" y="513" width="17.8" height="15.0" fill="rgb(209,28,20)" rx="2" ry="2" />
+<text text-anchor="" x="209.67" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Heap::PerformGarbageCollection (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Heap::PerformGarbageCollection (1 samples, 1.52%)</title><rect x="403.3" y="497" width="17.9" height="15.0" fill="rgb(242,168,53)" rx="2" ry="2" />
+<text text-anchor="" x="406.33" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:_tickDomainCallback node.js:368 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:_tickDomainCallback node.js:368 (1 samples, 1.52%)</title><rect x="331.8" y="641" width="17.9" height="15.0" fill="rgb(206,22,50)" rx="2" ry="2" />
+<text text-anchor="" x="334.82" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Heap::CollectGarbage (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Heap::CollectGarbage (1 samples, 1.52%)</title><rect x="403.3" y="513" width="17.9" height="15.0" fill="rgb(244,150,11)" rx="2" ry="2" />
+<text text-anchor="" x="406.33" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::VisitForEffect (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::VisitForEffect (1 samples, 1.52%)</title><rect x="188.8" y="481" width="17.9" height="15.0" fill="rgb(248,86,43)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="1029.1" y="385" width="17.9" height="15.0" fill="rgb(248,165,32)" rx="2" ry="2" />
+<text text-anchor="" x="1032.09" y="395.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:Cursor._exec /home/slooker/bass-videos/node_modules/nedb/lib/cursor.js:106 (23 samples, 34.85%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:Cursor._exec /home/slooker/bass-videos/node_modules/nedb/lib/cursor.js:106 (23 samples, 34.85%)</title><rect x="689.4" y="609" width="411.2" height="15.0" fill="rgb(243,49,19)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompile:Cursor._exec /home/slooker/bass-videos/node_..</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:FunctionApply (24 samples, 36.36%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:FunctionApply (24 samples, 36.36%)</title><rect x="689.4" y="625" width="429.1" height="15.0" fill="rgb(238,154,18)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:FunctionApply</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*OutgoingMessage._finish _http_outgoing.js:570 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*OutgoingMessage._finish _http_outgoing.js:570 (1 samples, 1.52%)</title><rect x="474.8" y="545" width="17.9" height="15.0" fill="rgb(244,212,16)" rx="2" ry="2" />
+<text text-anchor="" x="477.85" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HValue::SetOperandAt (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HValue::SetOperandAt (1 samples, 1.52%)</title><rect x="600.0" y="33" width="17.9" height="15.0" fill="rgb(226,164,43)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="43.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::BuildGraph (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::BuildGraph (1 samples, 1.52%)</title><rect x="188.8" y="513" width="17.9" height="15.0" fill="rgb(254,114,28)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('native_write_msr_safe (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>native_write_msr_safe (5 samples, 7.58%)</title><rect x="27.9" y="561" width="89.4" height="15.0" fill="rgb(239,23,12)" rx="2" ry="2" />
+<text text-anchor="" x="30.88" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >native_wri..</text>
+</g>
+<g class="func_g" onmouseover="s('uv__run_check (45 samples, 68.18%)')" onmouseout="c()" onclick="zoom(this)">
+<title>uv__run_check (45 samples, 68.18%)</title><rect x="367.6" y="801" width="804.5" height="15.0" fill="rgb(210,123,13)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="811.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >uv__run_check</text>
+</g>
+<g class="func_g" onmouseover="s('Function:~ /home/slooker/bass-videos/node_modules/hapi/node_modules/catbox/node_modules/joi/node_modules/moment/moment.js:7 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Function:~ /home/slooker/bass-videos/node_modules/hapi/node_modules/catbox/node_modules/joi/node_modules/moment/moment.js:7 (1 samples, 1.52%)</title><rect x="296.1" y="305" width="17.8" height="15.0" fill="rgb(233,35,23)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="315.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('pthread_mutex_lock (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>pthread_mutex_lock (1 samples, 1.52%)</title><rect x="993.3" y="401" width="17.9" height="15.0" fill="rgb(236,111,18)" rx="2" ry="2" />
+<text text-anchor="" x="996.33" y="411.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::LookupIterator::Next (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::LookupIterator::Next (1 samples, 1.52%)</title><rect x="1154.2" y="705" width="17.9" height="15.0" fill="rgb(225,149,15)" rx="2" ry="2" />
+<text text-anchor="" x="1157.24" y="715.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="296.1" y="337" width="17.8" height="15.0" fill="rgb(240,122,48)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="347.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:processImmediate timers.js:342 (26 samples, 39.39%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:processImmediate timers.js:342 (26 samples, 39.39%)</title><rect x="689.4" y="673" width="464.8" height="15.0" fill="rgb(245,214,23)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="683.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompile:processImmediate timers.js:342</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:FunctionApply (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:FunctionApply (1 samples, 1.52%)</title><rect x="474.8" y="609" width="17.9" height="15.0" fill="rgb(243,229,18)" rx="2" ry="2" />
+<text text-anchor="" x="477.85" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:socket (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:socket (7 samples, 10.61%)</title><rect x="528.5" y="561" width="125.1" height="15.0" fill="rgb(243,110,5)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LoadPolymorphic..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*saxParser.ontext.saxParser.oncdata /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/lib/xml2js.js:221 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*saxParser.ontext.saxParser.oncdata /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/lib/xml2js.js:221 (1 samples, 1.52%)</title><rect x="457.0" y="385" width="17.8" height="15.0" fill="rgb(238,105,2)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="395.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (2 samples, 3.03%)</title><rect x="439.1" y="625" width="35.7" height="15.0" fill="rgb(251,39,18)" rx="2" ry="2" />
+<text text-anchor="" x="442.09" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Bui..</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="367.6" y="577" width="17.9" height="15.0" fill="rgb(253,148,31)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:JSEntryStub (4 samples, 6.06%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:JSEntryStub (4 samples, 6.06%)</title><rect x="278.2" y="673" width="71.5" height="15.0" fill="rgb(228,24,5)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="683.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Stub:JSE..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~g events.js:194 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~g events.js:194 (1 samples, 1.52%)</title><rect x="492.7" y="609" width="17.9" height="15.0" fill="rgb(224,169,37)" rx="2" ry="2" />
+<text text-anchor="" x="495.73" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*once events.js:188 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*once events.js:188 (1 samples, 1.52%)</title><rect x="582.1" y="337" width="17.9" height="15.0" fill="rgb(246,17,28)" rx="2" ry="2" />
+<text text-anchor="" x="585.12" y="347.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (8 samples, 12.12%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (8 samples, 12.12%)</title><rect x="510.6" y="625" width="143.0" height="15.0" fill="rgb(245,204,47)" rx="2" ry="2" />
+<text text-anchor="" x="513.61" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:ArgumentsA..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::LookupIterator::TransitionToDataProperty (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::LookupIterator::TransitionToDataProperty (3 samples, 4.55%)</title><rect x="814.5" y="385" width="53.7" height="15.0" fill="rgb(229,221,33)" rx="2" ry="2" />
+<text text-anchor="" x="817.55" y="395.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::i..</text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CallApiFunctionStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CallApiFunctionStub (1 samples, 1.52%)</title><rect x="635.8" y="385" width="17.8" height="15.0" fill="rgb(227,185,54)" rx="2" ry="2" />
+<text text-anchor="" x="638.76" y="395.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Execution::Call (4 samples, 6.06%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Execution::Call (4 samples, 6.06%)</title><rect x="278.2" y="705" width="71.5" height="15.0" fill="rgb(243,23,52)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="715.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::inte..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)</title><rect x="707.3" y="433" width="17.9" height="15.0" fill="rgb(252,137,22)" rx="2" ry="2" />
+<text text-anchor="" x="710.27" y="443.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (2 samples, 3.03%)</title><rect x="153.0" y="641" width="35.8" height="15.0" fill="rgb(213,116,23)" rx="2" ry="2" />
+<text text-anchor="" x="156.03" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Bui..</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="564.2" y="337" width="17.9" height="15.0" fill="rgb(212,174,52)" rx="2" ry="2" />
+<text text-anchor="" x="567.24" y="347.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::Function::NewInstance (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::Function::NewInstance (3 samples, 4.55%)</title><rect x="224.5" y="737" width="53.7" height="15.0" fill="rgb(211,1,10)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="747.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::F..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::String::Utf8Length (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::String::Utf8Length (1 samples, 1.52%)</title><rect x="385.5" y="529" width="17.8" height="15.0" fill="rgb(248,211,48)" rx="2" ry="2" />
+<text text-anchor="" x="388.45" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:fd (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:fd (1 samples, 1.52%)</title><rect x="653.6" y="657" width="17.9" height="15.0" fill="rgb(210,137,0)" rx="2" ry="2" />
+<text text-anchor="" x="656.64" y="667.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:JSConstructStubGeneric (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:JSConstructStubGeneric (2 samples, 3.03%)</title><rect x="188.8" y="641" width="35.7" height="15.0" fill="rgb(228,100,30)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Bui..</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="349.7" y="513" width="17.9" height="15.0" fill="rgb(241,151,42)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:JSEntryStub (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:JSEntryStub (5 samples, 7.58%)</title><rect x="135.2" y="689" width="89.3" height="15.0" fill="rgb(208,223,6)" rx="2" ry="2" />
+<text text-anchor="" x="138.15" y="699.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Stub:JSEnt..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::JSObject::MigrateToMap (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::JSObject::MigrateToMap (1 samples, 1.52%)</title><rect x="528.5" y="209" width="17.9" height="15.0" fill="rgb(210,198,36)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="219.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="993.3" y="417" width="17.9" height="15.0" fill="rgb(242,166,15)" rx="2" ry="2" />
+<text text-anchor="" x="996.33" y="427.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:append (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:append (1 samples, 1.52%)</title><rect x="510.6" y="545" width="17.9" height="15.0" fill="rgb(226,208,45)" rx="2" ry="2" />
+<text text-anchor="" x="513.61" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="617.9" y="321" width="17.9" height="15.0" fill="rgb(229,128,18)" rx="2" ry="2" />
+<text text-anchor="" x="620.88" y="331.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:JSConstructStubApi (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:JSConstructStubApi (3 samples, 4.55%)</title><rect x="224.5" y="657" width="53.7" height="15.0" fill="rgb(237,205,27)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="667.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Built..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*Object.defineProperty.get domain.js:36 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*Object.defineProperty.get domain.js:36 (1 samples, 1.52%)</title><rect x="457.0" y="193" width="17.8" height="15.0" fill="rgb(253,144,26)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="203.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="635.8" y="401" width="17.8" height="15.0" fill="rgb(235,44,35)" rx="2" ry="2" />
+<text text-anchor="" x="638.76" y="411.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Heap::DoScavenge (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Heap::DoScavenge (1 samples, 1.52%)</title><rect x="403.3" y="465" width="17.9" height="15.0" fill="rgb(211,2,21)" rx="2" ry="2" />
+<text text-anchor="" x="406.33" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::LookupIterator::FetchValue (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::LookupIterator::FetchValue (1 samples, 1.52%)</title><rect x="296.1" y="193" width="17.8" height="15.0" fill="rgb(225,20,6)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="203.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:newListener (8 samples, 12.12%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:newListener (8 samples, 12.12%)</title><rect x="510.6" y="657" width="143.0" height="15.0" fill="rgb(250,80,4)" rx="2" ry="2" />
+<text text-anchor="" x="513.61" y="667.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LoadPolymorphicIC:..</text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (7 samples, 10.61%)</title><rect x="528.5" y="577" width="125.1" height="15.0" fill="rgb(232,61,40)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[unknown]</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime::GetObjectProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime::GetObjectProperty (1 samples, 1.52%)</title><rect x="457.0" y="321" width="17.8" height="15.0" fill="rgb(224,179,41)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="331.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('intel_pmu_enable_all (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>intel_pmu_enable_all (5 samples, 7.58%)</title><rect x="27.9" y="577" width="89.4" height="15.0" fill="rgb(226,0,24)" rx="2" ry="2" />
+<text text-anchor="" x="30.88" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >intel_pmu_..</text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:socket (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:socket (7 samples, 10.61%)</title><rect x="528.5" y="513" width="125.1" height="15.0" fill="rgb(247,208,7)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LoadPolymorphic..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::SetProperty (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::SetProperty (5 samples, 7.58%)</title><rect x="778.8" y="433" width="89.4" height="15.0" fill="rgb(238,65,40)" rx="2" ry="2" />
+<text text-anchor="" x="781.79" y="443.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::intern..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*socketOnData _http_client.js:303 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*socketOnData _http_client.js:303 (1 samples, 1.52%)</title><rect x="510.6" y="561" width="17.9" height="15.0" fill="rgb(221,112,23)" rx="2" ry="2" />
+<text text-anchor="" x="513.61" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::AddDataProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::AddDataProperty (1 samples, 1.52%)</title><rect x="582.1" y="209" width="17.9" height="15.0" fill="rgb(239,209,13)" rx="2" ry="2" />
+<text text-anchor="" x="585.12" y="219.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::Function::Call (44 samples, 66.67%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::Function::Call (44 samples, 66.67%)</title><rect x="367.6" y="753" width="786.6" height="15.0" fill="rgb(214,108,38)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="763.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::Function::Call</text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="528.5" y="337" width="17.9" height="15.0" fill="rgb(254,40,51)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="347.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:JSEntryTrampoline (4 samples, 6.06%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:JSEntryTrampoline (4 samples, 6.06%)</title><rect x="278.2" y="657" width="71.5" height="15.0" fill="rgb(245,175,16)" rx="2" ry="2" />
+<text text-anchor="" x="281.18" y="667.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:..</text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (7 samples, 10.61%)</title><rect x="528.5" y="417" width="125.1" height="15.0" fill="rgb(241,121,9)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="427.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[unknown]</text>
+</g>
+<g class="func_g" onmouseover="s('node::TCPWrap::New (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::TCPWrap::New (1 samples, 1.52%)</title><rect x="260.3" y="593" width="17.9" height="15.0" fill="rgb(220,205,42)" rx="2" ry="2" />
+<text text-anchor="" x="263.30" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::JSObject::SetOwnPropertyIgnoreAttributes (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::JSObject::SetOwnPropertyIgnoreAttributes (1 samples, 1.52%)</title><rect x="224.5" y="449" width="17.9" height="15.0" fill="rgb(222,151,47)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (2 samples, 3.03%)</title><rect x="439.1" y="577" width="35.7" height="15.0" fill="rgb(243,224,46)" rx="2" ry="2" />
+<text text-anchor="" x="442.09" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[un..</text>
+</g>
+<g class="func_g" onmouseover="s('Stub:connections (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:connections (1 samples, 1.52%)</title><rect x="582.1" y="353" width="17.9" height="15.0" fill="rgb(239,207,35)" rx="2" ry="2" />
+<text text-anchor="" x="585.12" y="363.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~internals.Topo._sort /home/slooker/bass-videos/node_modules/hapi/node_modules/topo/lib/index.js:57 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~internals.Topo._sort /home/slooker/bass-videos/node_modules/hapi/node_modules/topo/lib/index.js:57 (1 samples, 1.52%)</title><rect x="457.0" y="465" width="17.8" height="15.0" fill="rgb(229,193,31)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::StoreIC_Slow (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::StoreIC_Slow (1 samples, 1.52%)</title><rect x="296.1" y="273" width="17.8" height="15.0" fill="rgb(244,86,35)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="283.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::BuildStoreNamedField (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::BuildStoreNamedField (1 samples, 1.52%)</title><rect x="600.0" y="81" width="17.9" height="15.0" fill="rgb(215,12,35)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="91.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:JSEntryTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:JSEntryTrampoline (1 samples, 1.52%)</title><rect x="296.1" y="385" width="17.8" height="15.0" fill="rgb(222,42,12)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="395.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="582.1" y="321" width="17.9" height="15.0" fill="rgb(214,65,33)" rx="2" ry="2" />
+<text text-anchor="" x="585.12" y="331.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:forEach (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:forEach (1 samples, 1.52%)</title><rect x="474.8" y="593" width="17.9" height="15.0" fill="rgb(212,108,45)" rx="2" ry="2" />
+<text text-anchor="" x="477.85" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadIC:incoming (6 samples, 9.09%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadIC:incoming (6 samples, 9.09%)</title><rect x="760.9" y="529" width="107.3" height="15.0" fill="rgb(252,74,27)" rx="2" ry="2" />
+<text text-anchor="" x="763.91" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LoadIC:incoming</text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:removeListener (4 samples, 6.06%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:removeListener (4 samples, 6.06%)</title><rect x="367.6" y="641" width="71.5" height="15.0" fill="rgb(241,32,11)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LoadPoly..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::AddDataProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::AddDataProperty (1 samples, 1.52%)</title><rect x="260.3" y="497" width="17.9" height="15.0" fill="rgb(212,143,46)" rx="2" ry="2" />
+<text text-anchor="" x="263.30" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('sys_epoll_wait (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>sys_epoll_wait (7 samples, 10.61%)</title><rect x="10.0" y="753" width="125.2" height="15.0" fill="rgb(246,130,43)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="763.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sys_epoll_wait</text>
+</g>
+<g class="func_g" onmouseover="s('v8::Function::Call (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::Function::Call (1 samples, 1.52%)</title><rect x="296.1" y="449" width="17.8" height="15.0" fill="rgb(234,223,44)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::StringBytes::Write (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::StringBytes::Write (1 samples, 1.52%)</title><rect x="367.6" y="513" width="17.9" height="15.0" fill="rgb(241,82,4)" rx="2" ry="2" />
+<text text-anchor="" x="370.58" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*render /home/slooker/bass-videos/node_modules/hogan/node_modules/hogan.js/lib/template.js:40 (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*render /home/slooker/bass-videos/node_modules/hogan/node_modules/hogan.js/lib/template.js:40 (3 samples, 4.55%)</title><rect x="1029.1" y="497" width="53.6" height="15.0" fill="rgb(214,1,49)" rx="2" ry="2" />
+<text text-anchor="" x="1032.09" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyC..</text>
+</g>
+<g class="func_g" onmouseover="s('Stub:JSEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:JSEntryStub (1 samples, 1.52%)</title><rect x="296.1" y="401" width="17.8" height="15.0" fill="rgb(216,1,1)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="411.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="492.7" y="641" width="17.9" height="15.0" fill="rgb(246,8,47)" rx="2" ry="2" />
+<text text-anchor="" x="495.73" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Builtin_ArraySplice (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Builtin_ArraySplice (1 samples, 1.52%)</title><rect x="671.5" y="641" width="17.9" height="15.0" fill="rgb(236,64,3)" rx="2" ry="2" />
+<text text-anchor="" x="674.52" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="188.8" y="609" width="17.9" height="15.0" fill="rgb(224,179,53)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:StringAddStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:StringAddStub (1 samples, 1.52%)</title><rect x="564.2" y="273" width="17.9" height="15.0" fill="rgb(222,29,53)" rx="2" ry="2" />
+<text text-anchor="" x="567.24" y="283.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:JSEntryTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:JSEntryTrampoline (1 samples, 1.52%)</title><rect x="349.7" y="641" width="17.9" height="15.0" fill="rgb(253,138,30)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::Function::Call (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::Function::Call (5 samples, 7.58%)</title><rect x="135.2" y="737" width="89.3" height="15.0" fill="rgb(249,217,27)" rx="2" ry="2" />
+<text text-anchor="" x="138.15" y="747.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::Functi..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~toString native array.js:247 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~toString native array.js:247 (1 samples, 1.52%)</title><rect x="1100.6" y="609" width="17.9" height="15.0" fill="rgb(254,16,24)" rx="2" ry="2" />
+<text text-anchor="" x="1103.61" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="707.3" y="561" width="17.9" height="15.0" fill="rgb(242,118,15)" rx="2" ry="2" />
+<text text-anchor="" x="710.27" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime_NewClosure (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime_NewClosure (1 samples, 1.52%)</title><rect x="206.7" y="529" width="17.8" height="15.0" fill="rgb(212,50,29)" rx="2" ry="2" />
+<text text-anchor="" x="209.67" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('__libc_start_main (66 samples, 100.00%)')" onmouseout="c()" onclick="zoom(this)">
+<title>__libc_start_main (66 samples, 100.00%)</title><rect x="10.0" y="849" width="1180.0" height="15.0" fill="rgb(240,10,48)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="859.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >__libc_start_main</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~AVLTree. (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~AVLTree. (1 samples, 1.52%)</title><rect x="707.3" y="545" width="17.9" height="15.0" fill="rgb(220,104,14)" rx="2" ry="2" />
+<text text-anchor="" x="710.27" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="725.2" y="561" width="17.8" height="15.0" fill="rgb(234,13,43)" rx="2" ry="2" />
+<text text-anchor="" x="728.15" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::TCPWrap::OnConnection (8 samples, 12.12%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::TCPWrap::OnConnection (8 samples, 12.12%)</title><rect x="135.2" y="769" width="143.0" height="15.0" fill="rgb(215,80,31)" rx="2" ry="2" />
+<text text-anchor="" x="138.15" y="779.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >node::TCPWrap::OnC..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime::SetObjectProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime::SetObjectProperty (1 samples, 1.52%)</title><rect x="260.3" y="545" width="17.9" height="15.0" fill="rgb(245,197,8)" rx="2" ry="2" />
+<text text-anchor="" x="263.30" y="555.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime::SetObjectProperty (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime::SetObjectProperty (5 samples, 7.58%)</title><rect x="778.8" y="449" width="89.4" height="15.0" fill="rgb(238,140,31)" rx="2" ry="2" />
+<text text-anchor="" x="781.79" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::intern..</text>
+</g>
+<g class="func_g" onmouseover="s('ep_send_events_proc (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>ep_send_events_proc (1 samples, 1.52%)</title><rect x="10.0" y="705" width="17.9" height="15.0" fill="rgb(245,206,40)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="715.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)</title><rect x="707.3" y="513" width="17.9" height="15.0" fill="rgb(244,195,12)" rx="2" ry="2" />
+<text text-anchor="" x="710.27" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::FixedArray::CopySize (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::FixedArray::CopySize (2 samples, 3.03%)</title><rect x="832.4" y="337" width="35.8" height="15.0" fill="rgb(220,174,5)" rx="2" ry="2" />
+<text text-anchor="" x="835.42" y="347.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8:..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Map::TransitionElementsTo (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Map::TransitionElementsTo (1 samples, 1.52%)</title><rect x="689.4" y="449" width="17.9" height="15.0" fill="rgb(219,27,2)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::SetProperty (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::SetProperty (5 samples, 7.58%)</title><rect x="778.8" y="417" width="89.4" height="15.0" fill="rgb(226,105,30)" rx="2" ry="2" />
+<text text-anchor="" x="781.79" y="427.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::intern..</text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:JSEntryTrampoline (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:JSEntryTrampoline (5 samples, 7.58%)</title><rect x="135.2" y="673" width="89.3" height="15.0" fill="rgb(233,27,14)" rx="2" ry="2" />
+<text text-anchor="" x="138.15" y="683.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:JS..</text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:domain (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:domain (1 samples, 1.52%)</title><rect x="1064.8" y="401" width="17.9" height="15.0" fill="rgb(211,44,38)" rx="2" ry="2" />
+<text text-anchor="" x="1067.85" y="411.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="617.9" y="337" width="17.9" height="15.0" fill="rgb(238,210,21)" rx="2" ry="2" />
+<text text-anchor="" x="620.88" y="347.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::Function::Call (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::Function::Call (1 samples, 1.52%)</title><rect x="313.9" y="465" width="17.9" height="15.0" fill="rgb(243,226,35)" rx="2" ry="2" />
+<text text-anchor="" x="316.94" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessAsMonomorphic (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessAsMonomorphic (1 samples, 1.52%)</title><rect x="188.8" y="417" width="17.9" height="15.0" fill="rgb(225,170,50)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="427.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Invoke (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Invoke (1 samples, 1.52%)</title><rect x="457.0" y="241" width="17.8" height="15.0" fill="rgb(224,153,0)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="251.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (2 samples, 3.03%)</title><rect x="153.0" y="625" width="35.8" height="15.0" fill="rgb(237,49,20)" rx="2" ry="2" />
+<text text-anchor="" x="156.03" y="635.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[un..</text>
+</g>
+<g class="func_g" onmouseover="s('StorePolymorphicIC:readable (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>StorePolymorphicIC:readable (1 samples, 1.52%)</title><rect x="206.7" y="593" width="17.8" height="15.0" fill="rgb(219,10,21)" rx="2" ry="2" />
+<text text-anchor="" x="209.67" y="603.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Invoke (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Invoke (3 samples, 4.55%)</title><rect x="224.5" y="705" width="53.7" height="15.0" fill="rgb(213,31,54)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="715.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::i..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*ServerResponse _http_server.js:101 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*ServerResponse _http_server.js:101 (1 samples, 1.52%)</title><rect x="582.1" y="305" width="17.9" height="15.0" fill="rgb(212,25,49)" rx="2" ry="2" />
+<text text-anchor="" x="585.12" y="315.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:FunctionApply (8 samples, 12.12%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:FunctionApply (8 samples, 12.12%)</title><rect x="510.6" y="641" width="143.0" height="15.0" fill="rgb(240,51,47)" rx="2" ry="2" />
+<text text-anchor="" x="513.61" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Builtin:FunctionAp..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~Buffer.concat buffer.js:182 (7 samples, 10.61%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~Buffer.concat buffer.js:182 (7 samples, 10.61%)</title><rect x="528.5" y="481" width="125.1" height="15.0" fill="rgb(229,225,12)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompile:~Bu..</text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (2 samples, 3.03%)</title><rect x="439.1" y="609" width="35.7" height="15.0" fill="rgb(238,21,24)" rx="2" ry="2" />
+<text text-anchor="" x="442.09" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >[un..</text>
+</g>
+<g class="func_g" onmouseover="s('node::TCPWrap::Instantiate (3 samples, 4.55%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::TCPWrap::Instantiate (3 samples, 4.55%)</title><rect x="224.5" y="753" width="53.7" height="15.0" fill="rgb(207,190,9)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="763.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >node:..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Object::SetProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Object::SetProperty (1 samples, 1.52%)</title><rect x="260.3" y="513" width="17.9" height="15.0" fill="rgb(253,121,36)" rx="2" ry="2" />
+<text text-anchor="" x="263.30" y="523.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)</title><rect x="707.3" y="417" width="17.9" height="15.0" fill="rgb(241,102,52)" rx="2" ry="2" />
+<text text-anchor="" x="710.27" y="427.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('[unknown] (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 1.52%)</title><rect x="1136.4" y="657" width="17.8" height="15.0" fill="rgb(237,16,22)" rx="2" ry="2" />
+<text text-anchor="" x="1139.36" y="667.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:~OutgoingMessage._writeRaw _http_outgoing.js:145 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:~OutgoingMessage._writeRaw _http_outgoing.js:145 (1 samples, 1.52%)</title><rect x="457.0" y="497" width="17.8" height="15.0" fill="rgb(237,87,47)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:* /home/slooker/bass-videos/node_modules/nedb/lib/indexes.js:279 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:* /home/slooker/bass-videos/node_modules/nedb/lib/indexes.js:279 (1 samples, 1.52%)</title><rect x="707.3" y="401" width="17.9" height="15.0" fill="rgb(233,91,25)" rx="2" ry="2" />
+<text text-anchor="" x="710.27" y="411.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)</title><rect x="707.3" y="481" width="17.9" height="15.0" fill="rgb(221,94,43)" rx="2" ry="2" />
+<text text-anchor="" x="710.27" y="491.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:ArgumentsAdaptorTrampoline (1 samples, 1.52%)</title><rect x="349.7" y="401" width="17.9" height="15.0" fill="rgb(241,96,43)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="411.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Map::TransitionToDataProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Map::TransitionToDataProperty (1 samples, 1.52%)</title><rect x="582.1" y="177" width="17.9" height="15.0" fill="rgb(225,138,45)" rx="2" ry="2" />
+<text text-anchor="" x="585.12" y="187.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Execution::Call (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Execution::Call (1 samples, 1.52%)</title><rect x="296.1" y="433" width="17.8" height="15.0" fill="rgb(236,95,9)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="443.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime::SetObjectProperty (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime::SetObjectProperty (1 samples, 1.52%)</title><rect x="296.1" y="257" width="17.8" height="15.0" fill="rgb(218,222,3)" rx="2" ry="2" />
+<text text-anchor="" x="299.06" y="267.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CEntryStub (1 samples, 1.52%)</title><rect x="868.2" y="497" width="17.9" height="15.0" fill="rgb(232,96,20)" rx="2" ry="2" />
+<text text-anchor="" x="871.18" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::JSObject::MigrateToMap (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::JSObject::MigrateToMap (1 samples, 1.52%)</title><rect x="224.5" y="417" width="17.9" height="15.0" fill="rgb(244,174,3)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="427.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:JSConstructStubGeneric (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:JSConstructStubGeneric (1 samples, 1.52%)</title><rect x="206.7" y="577" width="17.8" height="15.0" fill="rgb(219,53,16)" rx="2" ry="2" />
+<text text-anchor="" x="209.67" y="587.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::BuildGraph (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::BuildGraph (1 samples, 1.52%)</title><rect x="600.0" y="209" width="17.9" height="15.0" fill="rgb(231,63,48)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="219.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Runtime_SetProperty (5 samples, 7.58%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Runtime_SetProperty (5 samples, 7.58%)</title><rect x="778.8" y="465" width="89.4" height="15.0" fill="rgb(252,159,26)" rx="2" ry="2" />
+<text text-anchor="" x="781.79" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >v8::intern..</text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (12 samples, 18.18%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (12 samples, 18.18%)</title><rect x="760.9" y="561" width="214.6" height="15.0" fill="rgb(239,208,30)" rx="2" ry="2" />
+<text text-anchor="" x="763.91" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >LazyCompile:*write /home/slo..</text>
+</g>
+<g class="func_g" onmouseover="s('v8::Object::Set (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::Object::Set (1 samples, 1.52%)</title><rect x="260.3" y="561" width="17.9" height="15.0" fill="rgb(222,123,6)" rx="2" ry="2" />
+<text text-anchor="" x="263.30" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::HOptimizedGraphBuilder::BuildStore (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::HOptimizedGraphBuilder::BuildStore (1 samples, 1.52%)</title><rect x="188.8" y="449" width="17.9" height="15.0" fill="rgb(217,75,35)" rx="2" ry="2" />
+<text text-anchor="" x="191.79" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:CallFunctionStub_Args1 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:CallFunctionStub_Args1 (1 samples, 1.52%)</title><rect x="170.9" y="561" width="17.9" height="15.0" fill="rgb(246,53,25)" rx="2" ry="2" />
+<text text-anchor="" x="173.91" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Factory::NewFixedArray (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Factory::NewFixedArray (1 samples, 1.52%)</title><rect x="224.5" y="369" width="17.9" height="15.0" fill="rgb(238,103,40)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="379.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*write /home/slooker/bass-videos/node_modules/aws-sdk/node_modules/xml2js/node_modules/sax/lib/sax.js:591 (1 samples, 1.52%)</title><rect x="689.4" y="529" width="17.9" height="15.0" fill="rgb(230,168,8)" rx="2" ry="2" />
+<text text-anchor="" x="692.39" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadIC:length (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadIC:length (1 samples, 1.52%)</title><rect x="492.7" y="561" width="17.9" height="15.0" fill="rgb(216,173,53)" rx="2" ry="2" />
+<text text-anchor="" x="495.73" y="571.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:_events (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:_events (1 samples, 1.52%)</title><rect x="349.7" y="449" width="17.9" height="15.0" fill="rgb(248,214,21)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="459.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)</title><rect x="707.3" y="497" width="17.9" height="15.0" fill="rgb(223,225,11)" rx="2" ry="2" />
+<text text-anchor="" x="710.27" y="507.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadIC:length (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadIC:length (1 samples, 1.52%)</title><rect x="403.3" y="609" width="17.9" height="15.0" fill="rgb(238,122,40)" rx="2" ry="2" />
+<text text-anchor="" x="406.33" y="619.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:_maxListeners (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:_maxListeners (1 samples, 1.52%)</title><rect x="1047.0" y="385" width="17.8" height="15.0" fill="rgb(211,129,48)" rx="2" ry="2" />
+<text text-anchor="" x="1049.97" y="395.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LazyCompile:*BinarySearchTree.executeOnEveryNode /home/slooker/bass-videos/node_modules/nedb/node_modules/binary-search-tree/lib/bst.js:508 (1 samples, 1.52%)</title><rect x="707.3" y="465" width="17.9" height="15.0" fill="rgb(232,4,33)" rx="2" ry="2" />
+<text text-anchor="" x="710.27" y="475.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::Utf8Value::Utf8Value (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::Utf8Value::Utf8Value (1 samples, 1.52%)</title><rect x="635.8" y="337" width="17.8" height="15.0" fill="rgb(238,63,22)" rx="2" ry="2" />
+<text text-anchor="" x="638.76" y="347.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:FunctionApply (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:FunctionApply (1 samples, 1.52%)</title><rect x="707.3" y="529" width="17.9" height="15.0" fill="rgb(251,23,7)" rx="2" ry="2" />
+<text text-anchor="" x="710.27" y="539.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Builtin:CompileOptimized (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Builtin:CompileOptimized (1 samples, 1.52%)</title><rect x="600.0" y="321" width="17.9" height="15.0" fill="rgb(230,158,19)" rx="2" ry="2" />
+<text text-anchor="" x="603.00" y="331.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('Stub:JSEntryStub (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>Stub:JSEntryStub (1 samples, 1.52%)</title><rect x="457.0" y="225" width="17.8" height="15.0" fill="rgb(233,209,54)" rx="2" ry="2" />
+<text text-anchor="" x="459.97" y="235.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('StorePolymorphicIC:readable (2 samples, 3.03%)')" onmouseout="c()" onclick="zoom(this)">
+<title>StorePolymorphicIC:readable (2 samples, 3.03%)</title><rect x="439.1" y="641" width="35.7" height="15.0" fill="rgb(216,144,21)" rx="2" ry="2" />
+<text text-anchor="" x="442.09" y="651.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Sto..</text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:_valids (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:_valids (1 samples, 1.52%)</title><rect x="1047.0" y="401" width="17.8" height="15.0" fill="rgb(253,114,27)" rx="2" ry="2" />
+<text text-anchor="" x="1049.97" y="411.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::JSObject::MigrateFastToFast (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::JSObject::MigrateFastToFast (1 samples, 1.52%)</title><rect x="224.5" y="401" width="17.9" height="15.0" fill="rgb(243,187,35)" rx="2" ry="2" />
+<text text-anchor="" x="227.55" y="411.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::JSObject::MigrateFastToFast (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::JSObject::MigrateFastToFast (1 samples, 1.52%)</title><rect x="528.5" y="193" width="17.9" height="15.0" fill="rgb(224,43,40)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="203.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('v8::internal::Factory::NewFixedArray (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>v8::internal::Factory::NewFixedArray (1 samples, 1.52%)</title><rect x="850.3" y="321" width="17.9" height="15.0" fill="rgb(216,122,34)" rx="2" ry="2" />
+<text text-anchor="" x="853.30" y="331.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('LoadPolymorphicIC:_app (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>LoadPolymorphicIC:_app (1 samples, 1.52%)</title><rect x="528.5" y="353" width="17.9" height="15.0" fill="rgb(238,164,13)" rx="2" ry="2" />
+<text text-anchor="" x="531.48" y="363.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s('node::StreamWrapCallbacks::DoRead (1 samples, 1.52%)')" onmouseout="c()" onclick="zoom(this)">
+<title>node::StreamWrapCallbacks::DoRead (1 samples, 1.52%)</title><rect x="349.7" y="737" width="17.9" height="15.0" fill="rgb(253,113,26)" rx="2" ry="2" />
+<text text-anchor="" x="352.70" y="747.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+</svg>
