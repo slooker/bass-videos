@@ -133,10 +133,35 @@ server.route({
 
 server.route({
   method: 'GET',
-  path: '/flame.svg',
+  path: '/flame-express.svg',
   handler: function(request, reply) {
-    reply.file('images/nodestack.svg');
+    reply.file('images/nodestack-express.svg');
+  }
+});
+server.route({
+  method: 'GET',
+  path: '/flame-hapi.svg',
+  handler: function(request, reply) {
+    reply.file('images/nodestack-hapi.svg');
+  }
+});
 
+server.route({ 
+  method: 'GET',
+  path: '/images/{file}.jpg',
+  handler: function(request, reply) {
+    var file = 'images/'+request.params.file + '.jpg'
+    fs.exists(file, function(exists) {
+      if (/[A-Za-z0-9\-\.\'\,]+/.test(request.params.file)) {
+        if (exists) {
+          reply.file(file);
+        } else {
+          reply("No image found.").code(404);
+        }
+      } else {
+        reply("No image found.").code(404);
+      }
+    });
   }
 });
 

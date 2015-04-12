@@ -1,8 +1,12 @@
 {{< layout}}
 {{$content}}
+  <div class="text-list">
         {{#videos}}
-        <a href="/day/{{day}}">Day {{day}} - {{song}} by {{artist}}</a><br />
+        <div class="text-box">
+          <a href="/day/{{day}}">Day {{day}} - {{song}} by {{artist}}</a><br />
+        </div>
         {{/videos}}
+      </div>
 {{/content}}
 {{/layout}}
 
