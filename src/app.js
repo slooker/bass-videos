@@ -110,6 +110,7 @@ var HomePage = React.createClass({
         <Nav />
         <Videos />
       </div>
+      <RouteHandler />
 </body>
 </html>
     )
@@ -132,19 +133,18 @@ var SongPage = React.createClass({
   }
 });
 
+/*
 React.render(
   <HomePage />,
   document.getElementById('example')
 );
+*/
 
-var React = require('react');
-var Router = require('react-router');
-var Route = Router.Route;
-var RouteHandler = Router.RouteHandler;
-var Link = Router.Link;
+var Router = ReactRouter;
+var Route = ReactRouter.Route;
 
 var routes = (
-  <Route handler={App}>
+  <Route handler={HomePage}>
     <Route name="home" path="/" handler={HomePage}/>
   </Route>
 );

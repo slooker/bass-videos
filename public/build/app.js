@@ -1,9 +1,3 @@
-var React = require('react');
-var Router = require('react-router');
-var Route = Router.Route;
-var RouteHandler = Router.RouteHandler;
-var Link = Router.Link;
-
 var videos = [];
 
 var Header = React.createClass({displayName: "Header",
@@ -115,7 +109,8 @@ var HomePage = React.createClass({displayName: "HomePage",
 
         React.createElement(Nav, null), 
         React.createElement(Videos, null)
-      )
+      ), 
+      React.createElement(RouteHandler, null)
 )
 )
     )
@@ -138,8 +133,22 @@ var SongPage = React.createClass({displayName: "SongPage",
   }
 });
 
-Router.run(
-  React.createElement(HomePage, null),
+/*
+React.render(
+  <HomePage />,
   document.getElementById('example')
 );
+*/
 
+var Router = ReactRouter;
+var Route = ReactRouter.Route;
+
+var routes = (
+  React.createElement(Route, {handler: HomePage}, 
+    React.createElement(Route, {name: "home", path: "/", handler: HomePage})
+  )
+);
+
+Router.run(routes, function(Handler) {
+  React.render(React.createElement(Handler, null), document.getElementById('example'));
+});
