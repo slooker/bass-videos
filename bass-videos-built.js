@@ -3,25 +3,16 @@ var fs = require('fs');
 var Datastore = require('nedb')
   , vidDb = new Datastore({ filename: './data/videos', autoload : true })
 var schedule = require('node-schedule');
-var Hapi = require('hapi');
-var Path = require('path');
+var React = require('react');
+var Router = require('react-router');
+var Route = Router.route,
+    RouteHandler = Router.Handler, 
+    Link = Router.Link;
 
 // Schedule the new videos to be checked for every 5 minutes
 var scheduled = schedule.scheduleJob('*/5 * * * *', function() {
   fetchNewObjects();
 });
-
-// Setup our hapi server
-var server = new Hapi.Server({
-  connections: {
-    routes: {
-      files: {
-        relativeTo: Path.join(__dirname, "public")
-      }
-    }
-  }
-});
-server.connection({ port: 8001 });
 
 // Handle AWS stuff
 var s3 = new AWS.S3(); 
@@ -48,17 +39,14 @@ function fetchNewObjects() {
       });
     }
   });
-  vidDb.find({}, function(err,videoList) {
-    videos = videoList;
-  });
 }
 
 function imageDownload(imageKey) {
-  fs.exists('public/'+imageKey, function(exists) {
+  fs.exists(imageKey, function(exists) {
     localKey = imageKey.replace('mp4', 'png').replace(/\s/g,'');
     if (!exists) {
       //console.log(imageKey);
-      var file = fs.createWriteStream('public/'+localKey)
+      var file = fs.createWriteStream(localKey)
       s3.getObject({ Bucket: bucket, Key: imageKey}).
       on('httpData', function(chunk) { file.write(chunk); }).
       on('httpDone', function() { file.end(); }).
@@ -76,14 +64,132 @@ function addVideo(videoKey) {
   vidDb.find({day: day}, function (err, docs) {
     if (docs.length === 0) { // Don't already have a video with that day (multi videos on same day are appended with .1, .2 etc)
       var artist = entry[1];
+      console.log(entry);
       var song = entry[2].replace(".mp4", "");
       var prettyKey = videoKey.replace(".mp4","");
       var videoUrl = baseUrl + bucket + '/' + key;
-      var imageUrl ='/public/images/'+imageKey;
+      var imageUrl ='/images/'+imageKey;
       vidDb.insert({ day: day, artist: artist, song: song, videoUrl: videoUrl, imageUrl: imageUrl });
     }
   });
 }
+
+var Header = React.createClass({displayName: "Header",
+  render: function() {
+    return (
+      React.createElement("div", {id: "top"}, 
+            React.createElement("h1", null, "All About That Bass"), 
+            "One man's struggle to not suck at the bass.  Still a better love story than twilight."
+        )
+    );
+  }
+});
+
+var routes = (
+  React.createElement(Route, {handler: Header}, 
+    React.createElement(Route, {name: "homepage", path: "/", handler: Header})
+  )
+);
+
+
+
+
+/*
+server.route({
+  method: 'GET',
+  path: '/',
+  handler: function(request, reply) {
+    vidDb.find({}, function(err,videos) {
+      videos = uniqBy(videos, "day", false);
+      var html = indexTemplate.render({videos: videos}, {layout: layoutTemplate});
+      reply(html)
+    });
+  }
+});
+
+server.route({ 
+  method: 'GET',
+  path: '/css/{file}.css',
+  handler: function(request, reply) {
+    
+    reply.file('css/'+request.params.file + ".css");
+  }
+});
+server.route({ 
+  method: 'GET',
+  path: '/build/{file}.js',
+  handler: function(request, reply) {
+    reply.file('build/'+request.params.file + ".js");
+  }
+});
+server.route({ 
+  method: 'GET',
+  path: '/js/{file}.js',
+  handler: function(request, reply) {
+    reply.file('js/'+request.params.file + ".js");
+  }
+});
+
+server.route({ 
+  method: 'GET',
+  path: '/bass-videos.js',
+  handler: function(request, reply) {
+    reply.file('bass-videos.js');
+  }
+});
+
+server.route({
+  method: 'GET',
+  path: '/flame-express.svg',
+  handler: function(request, reply) {
+    reply.file('images/nodestack-express.svg');
+  }
+});
+server.route({
+  method: 'GET',
+  path: '/flame-hapi.svg',
+  handler: function(request, reply) {
+    reply.file('images/nodestack-hapi.svg');
+  }
+});
+
+server.route({ 
+  method: 'GET',
+  path: '/images/{file}.jpg',
+  handler: function(request, reply) {
+    var file = 'images/'+request.params.file + '.jpg'
+    fs.exists(file, function(exists) {
+      if (/[A-Za-z0-9\-\.\'\,]+/.test(request.params.file)) {
+        if (exists) {
+          reply.file(file);
+        } else {
+          reply("No image found.").code(404);
+        }
+      } else {
+        reply("No image found.").code(404);
+      }
+    });
+  }
+});
+
+server.route({ 
+  method: 'GET',
+  path: '/images/{file}.png',
+  handler: function(request, reply) {
+    var file = 'images/'+request.params.file + '.png'
+    fs.exists(file, function(exists) {
+      if (/[A-Za-z0-9\-\.\'\,]+/.test(request.params.file)) {
+        if (exists) {
+          reply.file(file);
+        } else {
+          reply("No image found.").code(404);
+        }
+      } else {
+        reply("No image found.").code(404);
+      }
+    });
+  }
+});
 
 function uniqBy(uniq, key, dedup) {
   if (dedup == null) { dedup = true; }
@@ -102,61 +208,6 @@ function uniqBy(uniq, key, dedup) {
   return uniq;
 }
 
-
-
-
-server.route({
-  method: 'GET',
-  path: '/',
-  handler: function(request, reply) {
-    var index = fs.readFileSync('templates/index.html').toString();
-    reply(index)
-  }
-});
-
-server.route({
-  method: 'GET',
-  path: '/api/videos',
-  handler: function(request, reply) {
-    reply(videos);
-  }
-});
-
-
-/* 
- * Static Routes
- */
-server.route({ method: 'GET', path: '/images/{filename}',
-  handler: {
-    file: function(request) {
-      return 'images/'+request.params.filename
-    }
-  }
-});
-server.route({ method: 'GET', path: '/build/{filename}',
-  handler: {
-    file: function(request) {
-      return 'build/'+request.params.filename
-    }
-  }
-});
-server.route({ method: 'GET', path: '/css/{filename}',
-  handler: {
-    file: function(request) {
-      return 'css/'+request.params.filename
-    }
-  }
-});
-
-server.route({ method: 'GET', path: '/js/{filename}',
-  handler: {
-    file: function(request) {
-      return 'js/'+request.params.filename
-    }
-  }
-});
-
-/*
 // TODO: Add some sort of count instead of duplicating the artist names
 server.route({
   method: 'GET',
@@ -282,11 +333,21 @@ server.route({
     }
   }
 });
-*/
 
+server.route({
+  method: 'GET',
+  path: '/test',
+  handler: function(request, reply) {
+    var testFile = fs.readFileSync('templates/test.hbs').toString();
+    var testTemplate = hogan.compile(testFile); 
+    var html = testTemplate.render();
+    reply(html)
+  }
+});
 
 server.start(function() {
   // Run the fetch on startup, so I can restart and get the videos immediately if need be.
   console.log('Server running at ', server.info.uri);
   fetchNewObjects()
 });
+*/

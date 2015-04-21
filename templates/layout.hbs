@@ -2,8 +2,8 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:og="http://ogp.me/ns#" xmlns:fb="http://www.facebook.com/2008/fbml">
   <head>
     <link href="/css/bass-videos.css" rel="stylesheet">
-    <!--    <link href="/css/bootstrap.min.css" rel="stylesheet"> -->
-    <script src="/bass-videos.js"></script>
+    <script src="/js/react-0.13.1.min.js"></script>
+    <script src="/js/JSXTransformer-0.13.1.js"></script>
     <title>Bass Videos</title>
     <link rel="image_src" href="{{videos.0.imageUrl}}" />
     <meta property="og:image" content="http://slooker.us{{videos.0.imageUrl}}" />
@@ -11,35 +11,10 @@
     <meta property="og:title" content="{{videos.0.song}} by {{videos.0.artist}}" />
   </head>
   <body>
-<!--
-    <h4>Pure HTML5 Video</h4>
-    <video id="{{day}}-video" preload controls>
-      <source src="{{url}}" />
-      <p>To view this video please enable JavaScript, and consider upgrading to a web browser that doesn't suck.</p>
-    </video>
-
-    <video id="{{day}}" class="video-js vjs-default-skin vjs-big-play-centered" controls
-    preload="none" poster="poster.jpg" data-setup="{}">
-      <source src="{{url}}" type='video/mp4'>
-      <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a></p>
-    </video><br />
--->
-    <div id="top">
-      <h1>All About That Bass</h1>
-      One man's struggle to not suck at the bass.  Still a better love story than twilight.
-    </div>
-    <div id="container">
-      <div id="left-rail">
-        <ul>
-          <li><a href="/">Home</a></li>
-          <li><a href="/songs">Songs</a></li>
-          <li><a href="/days">Days</a></li>
-          <li><a href="/artists">Artists</a></li>
-        </ul>
-      </div>
-        {{$content}}
-        default content
-        {{/content}}
-    </div>
+    <div id="example"></div>
+    <script type="text/jsx" src="/build/app.js"></script>
   </body>
 </html>
+
+
+

@@ -8,13 +8,13 @@
     "url": "git://github.com/slooker/bass-videos.git"
   },
   "dependencies": {
-    "aws-sdk": "~2.1",
-    "handlebars": "~2.0",
-    "hapi": "8.1",
-    "nedb": "^1.1.1",
-    "node-schedule": ">= 0.1.15",
-    "hogan": ">= 1.0.2",
-    "node-uuid": ">= 1.4.2"
+    "aws-sdk": "latest",
+    "nedb": "latest",
+    "node-schedule": "latest",
+    "node-uuid": "latest",
+    "react": "latest",
+    "react-router": "latest",
+    "webpack": "latest"
   },
   "author": "Shawn Looker",
   "license": "Apache 2.0",

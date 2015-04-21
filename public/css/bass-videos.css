@@ -2,24 +2,9 @@
 /* Not sure what this does (Well, it adds space around the content).  Need to figure out how */
 * { box-sizing: border-box; -moz-box-sizing: border-box; }
 
-/* This gets rid of the dot next to the list? */
-.row { overflow: auto; }
-
 /* Clearfix hack to make sure everything inside the row stays inside the row.  
  * Not sure how this works either.
  */
-.row:before
-.row:after {
-  content:"";
-  display: table;
-  clear: both;
-}
-
-
-.big-video {
-  width: 60%;
-  padding-left: 30px;
-}
 
 .songLink {
   padding-bottom: 10px;
@@ -30,8 +15,6 @@ img {
   width: 250px    !important;
   height: 141px  !important;
 }
-
-.video-row { padding-bottom: 42px; }
 
 video {
   width: 100%    !important;
@@ -137,14 +120,5 @@ h1 {
   text-align: center;
   font-weight: normal;
   color: #222;
-}
-
-/* This keeps our columns from overlapping if empty (which they should never be anyway */
-[class*='col-'] {
-  float: left;
-  min-height: 1px;
-  width: 20%;
-  /* gutter snip..err.. width */
-  padding: 12px;
 }
 
