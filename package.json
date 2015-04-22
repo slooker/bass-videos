@@ -3,12 +3,16 @@
   "version": "1.0.0",
   "description": "Streaming Bass Videos from S3",
   "main": "bass-videos.js",
+  "scripts": {
+    "start": "node ./node_modules/.bin/webpack --optimize-minimize --watch"
+  },
   "repository": {
     "type": "git",
     "url": "git://github.com/slooker/bass-videos.git"
   },
   "dependencies": {
     "aws-sdk": "latest",
+    "jsx-loader": "^0.13.1",
     "nedb": "latest",
     "node-schedule": "latest",
     "node-uuid": "latest",
