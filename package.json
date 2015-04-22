@@ -7,6 +7,9 @@
     "type": "git",
     "url": "git://github.com/slooker/bass-videos.git"
   },
+  "scripts": {
+    "build": "node ./node_modules/.bin/webpack --optimize-minimize --watch"
+  },
   "dependencies": {
     "aws-sdk": "latest",
     "nedb": "latest",
@@ -14,7 +17,8 @@
     "node-uuid": "latest",
     "react": "latest",
     "react-router": "latest",
-    "webpack": "latest"
+    "webpack": "latest",
+    "jsx-loader": "^0.13.1"
   },
   "author": "Shawn Looker",
   "license": "Apache 2.0",

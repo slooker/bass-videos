@@ -1,3 +1,9 @@
+var React = require('react');
+var Router = require('react-router');
+var Route = ReactRouter.Route;
+var DefaultRoute = ReactRouter.DefaultRoute;
+var RouteHandler = ReactRouter.RouteHandler;
+
 var videos = [];
 
 var Header = React.createClass({
@@ -146,11 +152,6 @@ React.render(
 );
 */
 
-var Router = ReactRouter;
-var Route = ReactRouter.Route;
-var DefaultRoute = ReactRouter.DefaultRoute;
-var RouteHandler = ReactRouter.RouteHandler;
-
 var routes = (
   <Route handler={HomePage}>
     <DefaultRoute handler={Videos}/>
@@ -158,6 +159,7 @@ var routes = (
   </Route>
 );
 
-Router.run(routes, function(Handler) {
-  React.render(<Handler/>, document.getElementById('example'));
-});
+  console.log("Loaded");
+  Router.run(routes, function(Handler) {
+    React.render(<Handler/>, document.getElementById('example'));
+  });
