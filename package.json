@@ -2,7 +2,7 @@
   "name": "bass-videos",
   "version": "1.0.0",
   "description": "Streaming Bass Videos from S3",
-  "main": "index.js",
+  "main": "bass-videos.js",
   "repository": {
     "type": "git",
     "url": "git://github.com/slooker/bass-videos.git"
