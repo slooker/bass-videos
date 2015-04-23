@@ -2,7 +2,7 @@ var Route = Router.Route;
 var DefaultRoute = Router.DefaultRoute;
 var RouteHandler = Router.RouteHandler;
 var Link = Router.Link;
-var Ajax = require('Ajax');
+var Ajax = require('./ajax.min.js');
 
 
 var videos = [];
@@ -50,27 +50,24 @@ var Box = React.createClass({
 
 var Videos = React.createClass({
   loadVideos: function() {
-    console.log("calling loadVideos");
     Ajax.get('/api/videos').then(function(response) {
-      console.log("loading videos");
       this.setState({videos: response});
     }.bind(this));
   },
   getInitialState: function() {
-    console.log("videos getInitialState");
     return {videos: []};
   },
   componentDidMount: function() { 
-    console.log("Videos component did mount");
     this.loadVideos();
   },
   render: function() {
     return (
       <div id="content">
         {this.state.videos.map(function(video) {
-          video.description = "Day "+video.day+"<br />"+video.song+" by "+video.artist;
-          return <Box {...video} />
-          //return <Box anchorUrl={video.videoUrl} imageUrl={video.imageUrl} day={video.day} song={video.song} artist={video.artist} /> 
+          if (!video.description)  {
+            video.description = <span><p>Day {video.day}</p><p>{video.song} by {video.artist}</p></span>;
+          }
+          return <Box key={video.id} {...video} />
         })}
       </div>
     )
@@ -81,29 +78,23 @@ var Songs = React.createClass({
   loadVideos: function() {
     if (videos.length == 0) {
       Ajax.get('/api/videos').then(function(response) {
-        console.log("loading videos in snogs");
-        console.log(response);
         this.setState({videos: response});
       }.bind(this));
     }
   },
   getInitialState: function() {
-    console.log("videos getInitialState");
     return {videos: []};
   },
   componentDidMount: function() { 
-    console.log("Videos componentn did mount");
     this.loadVideos();
   },
   render: function() {
     return (
       <div id="content">
         {this.state.videos.map(function(video) {
-          video.description = video.song+" by "+video.artist;
+          video.description = <p>{video.song} by {video.artist}</p>;
           video.anchorUrl = '/song/'+video.song;
           return <Box {...video} />
-          //return <Box anchorUrl="/song/{video.song}" imageUrl={video.imageUrl} day={video.day} song={video.song} artist={video.artist} /> 
-          //return "Test string"
         })}
       </div>
     )
@@ -160,7 +151,6 @@ var routes = (
   </Route>
 );
 
-  console.log("Loaded");
   Router.run(routes, function(Handler) {
     React.render(<Handler/>, document.getElementById('example'));
   });
