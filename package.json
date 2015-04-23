@@ -18,7 +18,8 @@
     "react": "latest",
     "react-router": "latest",
     "webpack": "latest",
-    "jsx-loader": "^0.13.1"
+    "jsx-loader": "^0.13.1",
+    "hapi": "latest"
   },
   "author": "Shawn Looker",
   "license": "Apache 2.0",

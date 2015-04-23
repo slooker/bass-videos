@@ -1,8 +1,9 @@
-var React = require('react');
-var Router = require('react-router');
-var Route = ReactRouter.Route;
-var DefaultRoute = ReactRouter.DefaultRoute;
-var RouteHandler = ReactRouter.RouteHandler;
+var Route = Router.Route;
+var DefaultRoute = Router.DefaultRoute;
+var RouteHandler = Router.RouteHandler;
+var Link = Router.Link;
+var Ajax = require('Ajax');
+
 
 var videos = [];
 
@@ -23,7 +24,7 @@ var Nav = React.createClass({
       <div id="left-rail">
         <ul>
           <li><a href="/">Home</a></li>
-          <li><a href="/songs" id="songsPage">Songs</a></li>
+          <li><Link to="songs">Songs</Link></li>
           <li><a href="/days">Days</a></li>
           <li><a href="/artists">Artists</a></li>
         </ul>
