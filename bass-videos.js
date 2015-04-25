@@ -5,6 +5,7 @@ var Datastore = require('nedb')
 var schedule = require('node-schedule');
 var Hapi = require('hapi');
 var Path = require('path');
+var config = require('./config.js');
 
 // Schedule the new videos to be checked for every 5 minutes
 var scheduled = schedule.scheduleJob('*/5 * * * *', function() {
@@ -21,7 +22,7 @@ var server = new Hapi.Server({
     }
   }
 });
-server.connection({ port: 8001 });
+server.connection({ port: config.port() });
 
 // Handle AWS stuff
 var s3 = new AWS.S3(); 
@@ -90,7 +91,6 @@ function uniqBy(uniq, key, dedup) {
   uniq.sort(function(a,b){
     return a[key] < b[key] ? -1 : 1;
   });
-  //console.log(uniq);
 
   if (dedup) { 
     for (var i = uniq.length - 2; i >= 0; i--) {
@@ -99,6 +99,9 @@ function uniqBy(uniq, key, dedup) {
       }
     }
   }
+console.log('inside uniqBy');
+  console.log(uniq);
+console.log('returning');
   return uniq;
 }
 
@@ -122,6 +125,22 @@ server.route({
   }
 });
 
+server.route({
+  method: 'GET',
+  path: '/api/artist/{artist}',
+  handler: function(request, reply) {
+    var artist = request.params.artist;
+    console.log("artist: "+artist);
+    if (/[\sA-Za-z0-9\-\.\'\,]+/.test(artist)) {
+      vidDb.find({artist: artist}, function(err, videos) {
+        var artistVideos = uniqBy(videos, "day", false);
+        reply(artistVideos);
+      });
+    } else {
+      reply("No artist found.").code(404);
+    }
+  }
+});
 
 /* 
  * Static Routes

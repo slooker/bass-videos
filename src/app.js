@@ -147,7 +147,7 @@ var Artists = React.createClass({
       <div id="content">
         {artists.map(function(artist, i) {
           return (
-            <div className='text-list'><Link to='artists'>{artist}</Link></div>
+            <div className='text-list'><Link to='artist' params={{artist: artist}} key={i}>{artist}</Link></div>
           )
         })}
       </div>
@@ -155,26 +155,71 @@ var Artists = React.createClass({
   }
 });
 
+var Video = React.createClass({
+  render: function() {
+    console.log("RENDERING VIDEO");
+    console.log(this.props);
+    return (
+      <div className='big-video'>
+      
+        <video preload="metadata" controls>
+          <source src={this.props.videoUrl} />
+          <p>To view this video please enable JavaScript, and consider upgrading to a web browser that doesn't suck.</p>
+        </video>
+        <div className="description">Day {this.props.day}<br />{this.props.song} by {this.props.artist}</div>
+      </div>
+    )
+  },
+
+
+});
+
 var Artist = React.createClass({
+  contextTypes: { router: React.PropTypes.func },
   loadVideos: function() {
-    if (videos.length == 0) {
-      Ajax.get('/api/videos').then(function(response) {
-        this.setState({videos: response});
+    console.log("inside loadVideos");
+    var artist = this.context.router.getCurrentParams().artist;
+      Ajax.get('/api/artist/'+artist).then(function(response) {
+        var artistVideos = React.__spread([], this.state.artistVideos);
+        artistVideos[artist] = response;
+        console.log(response);
+
+        this.setState({artistVideos: artistVideos, artist: artist});
+
       }.bind(this));
-    }
   },
   getInitialState: function() {
-    return {videos: []};
+    console.log("Artist - getInitialState");
+    return {artistVideos: []};
   },
   componentDidMount: function() { 
     this.loadVideos();
   },
   render: function() {
-    return (
-      test
-      
+    var artist = this.context.router.getCurrentParams().artist;
+    var component = <div />;
+    if (Object.keys(this.state.artistVideos).length > 0) {
+      console.log("Populated array");
+      if (Object.keys(this.state.artistVideos[artist]).length > 1) {
+        // return a list of videos (ala homepage)
+        console.log("multi video");
+        component = <div>multi video</div>
 
-    );
+      } else {
+        // return big video play window
+        console.log("KEYS: ");
+        console.log(Object.keys(this.state.artistVideos));
+        var video = this.state.artistVideos[artist][0];
+        console.log(this.state.artistVideos);
+        console.log("video");
+
+        console.log(video);
+        component = <Video {...video} key={video.id} />
+      }
+    }
+
+    console.log("Returning component.");
+    return component;
   }
 });
 
@@ -201,10 +246,10 @@ var routes = (
     <Route name="home" handler={Videos}/>
     <Route name="days" handler={HomePage}/>
     <Route name="artists" handler={Artists}/>
-    <Route name="artist" handler={Artist}/>
+    <Route name="artist" path="/artist/:artist" handler={Artist}/>
   </Route>
 );
 
   Router.run(routes, function(Handler) {
-    React.render(<Handler/>, document.getElementById('example'));
+    React.render(<Handler/>, document.body);
   });
