@@ -26,7 +26,6 @@ function uniqBy(uniq, key, dedup) {
 
 function extractUnique(uniq, key, dedup) {
   uniq = uniqBy(uniq, key, dedup);
-console.log(key);
   return uniq.map(function(u) { return u[key]; });
 }
 
@@ -56,15 +55,33 @@ var Nav = React.createClass({
   }
 })
 
-var Box = React.createClass({
+var SongBox = React.createClass({
   render: function() {
+    var alt = this.props.song + ' by ' + this.props.artist;
     return (
       <div className="box">
-        <a href={this.props.anchorUrl}>
-          <img src={this.props.imageUrl} alt={this.props.altTag} />
-        </a><br />
+        <Link to='song' params={{song: this.props.song}} key={this.props._id}>
+          <img src={this.props.imageUrl} alt={alt} />
+        </Link>
         <div className="description">
-          {this.props.description}
+          <p>{this.props.song} by {this.props.artist}</p>
+        </div>
+      </div>
+    );
+  }
+})
+
+var Box = React.createClass({
+  render: function() {
+    var alt = 'Day ' + this.day + ', ' + this.props.song + ' by ' + this.props.artist;
+    return (
+      <div className="box">
+        <Link to='video' params={{id: this.props._id}} key={this.props._id}>
+          <img src={this.props.imageUrl} alt={alt} />
+        </Link><br />
+        <div className="description">
+          <p>Day {this.props.day}</p>
+          <p>{this.props.song} by {this.props.artist}</p>
         </div>
       </div>
     );
@@ -72,25 +89,14 @@ var Box = React.createClass({
 })
 
 var Videos = React.createClass({
-  loadVideos: function() {
-    Ajax.get('/api/videos').then(function(response) {
-      this.setState({videos: response});
-    }.bind(this));
-  },
-  getInitialState: function() {
-    return {videos: []};
-  },
-  componentDidMount: function() { 
-    this.loadVideos();
-  },
   render: function() {
     return (
       <div id="content">
-        {this.state.videos.map(function(video) {
+        {this.props.videos.map(function(video) {
           if (!video.description)  {
             video.description = <block><p>Day {video.day}</p><p>{video.song} by {video.artist}</p></block>;
           }
-          return <Box key={video.id} {...video} />
+          return <Box key={video._id} {...video} />
         })}
       </div>
     )
@@ -113,9 +119,7 @@ var Songs = React.createClass({
     return (
       <div id="content">
         {this.state.videos.map(function(video) {
-          video.description = <p>{video.song} by {video.artist}</p>;
-          video.anchorUrl = '/song/'+video.song;
-          return <Box key={video.id} {...video} />
+          return <SongBox key={video._id} {...video} />
         })}
       </div>
     )
@@ -136,12 +140,11 @@ var Artists = React.createClass({
   },
   render: function() {
     artists = extractUnique(this.state.videos, "artist");
-    console.log(artists);
     return (
       <div id="content">
         {artists.map(function(artist, i) {
           return (
-            <div className='text-list'><Link to='artist' params={{artist: artist}} key={i}>{artist}</Link></div>
+            <div className='text-list' key={i}><Link to='artist' params={{artist: artist}}>{artist}</Link></div>
           )
         })}
       </div>
@@ -151,39 +154,78 @@ var Artists = React.createClass({
 
 var Video = React.createClass({
   render: function() {
-    console.log("RENDERING VIDEO");
-    console.log(this.props);
     return (
       <div className='big-video'>
-      
         <video preload="metadata" controls>
-          <source src={this.props.videoUrl} />
+          <source src={this.props.video.videoUrl} />
           <p>To view this video please enable JavaScript, and consider upgrading to a web browser that doesn't suck.</p>
         </video>
-        <div className="description">Day {this.props.day}<br />{this.props.song} by {this.props.artist}</div>
+        <div className="description">Day {this.props.video.day}<br />{this.props.video.song} by {this.props.video.artist}</div>
       </div>
     )
   },
+});
+
+var SingleVideo = React.createClass({
+  contextTypes: { router: React.PropTypes.func },
+  loadVideo: function() {
+    var id = this.context.router.getCurrentParams().id;
+    Ajax.get('/api/video/'+id).then(function(response) {
+      this.setState({video: response});
+    }.bind(this));
+  },
+  getInitialState: function() {
+    return {video: {}}; 
+  },
+  componentDidMount: function() { 
+    this.loadVideo();
+  },
+  render: function() {
+    if (this.state.video) {
+      var video = this.state.video;
+      return <Video video={video} key={video._id} />
+    }
+  }
+});
 
 
+
+var HomePageVideos = React.createClass({ 
+  loadVideos: function() {
+    if (Object.keys(this.props).length > 0) {
+      this.setState({videos: this.props});
+    } else {
+      Ajax.get('/api/videos').then(function(response) {
+        this.setState({videos: response});
+      }.bind(this));
+    }
+  },
+  getInitialState: function() {
+    return {videos: []};
+  },
+  componentDidMount: function() { 
+    this.loadVideos();
+  },
+  render: function() {
+    return (
+      <Videos videos={this.state.videos} />
+    );
+  }
 });
 
 var Artist = React.createClass({
   contextTypes: { router: React.PropTypes.func },
   loadVideos: function() {
-    console.log("inside loadVideos");
     var artist = this.context.router.getCurrentParams().artist;
       Ajax.get('/api/artist/'+artist).then(function(response) {
         var artistVideos = React.__spread([], this.state.artistVideos);
         artistVideos[artist] = response;
-        console.log(response);
 
         this.setState({artistVideos: artistVideos, artist: artist});
 
       }.bind(this));
   },
   getInitialState: function() {
-    console.log("Artist - getInitialState");
     return {artistVideos: []};
   },
   componentDidMount: function() { 
@@ -193,26 +235,54 @@ var Artist = React.createClass({
     var artist = this.context.router.getCurrentParams().artist;
     var component = <div />;
     if (Object.keys(this.state.artistVideos).length > 0) {
-      console.log("Populated array");
       if (Object.keys(this.state.artistVideos[artist]).length > 1) {
         // return a list of videos (ala homepage)
-        console.log("multi video");
-        component = <div>multi video</div>
+        component = <Videos videos={this.state.artistVideos[artist]} />
 
       } else {
         // return big video play window
-        console.log("KEYS: ");
-        console.log(Object.keys(this.state.artistVideos));
         var video = this.state.artistVideos[artist][0];
-        console.log(this.state.artistVideos);
-        console.log("video");
-
-        console.log(video);
-        component = <Video {...video} key={video.id} />
+        component = <Video video={video} key={video._id} />
       }
     }
 
-    console.log("Returning component.");
+    return component;
+  }
+});
+
+var Song = React.createClass({
+  contextTypes: { router: React.PropTypes.func },
+  loadVideos: function() {
+    var song = this.context.router.getCurrentParams().song;
+      Ajax.get('/api/song/'+song).then(function(response) {
+        var songVideos = React.__spread([], this.state.songVideos);
+        songVideos[song] = response;
+
+        this.setState({songVideos: songVideos, song: song});
+
+      }.bind(this));
+  },
+  getInitialState: function() {
+    return {songVideos: []};
+  },
+  componentDidMount: function() { 
+    this.loadVideos();
+  },
+  render: function() {
+    var song = this.context.router.getCurrentParams().song;
+    var component = <div />;
+    if (Object.keys(this.state.songVideos).length > 0) {
+      if (Object.keys(this.state.songVideos[song]).length > 1) {
+        // return a list of videos (ala homepage)
+        component = <Videos videos={this.state.songVideos[song]} />
+
+      } else {
+        // return big video play window
+        var video = this.state.songVideos[song][0];
+        component = <Video video={video} key={video._id} />
+      }
+    }
+
     return component;
   }
 });
@@ -237,10 +307,12 @@ var routes = (
   <Route handler={HomePage}>
     <DefaultRoute handler={Videos}/>
     <Route name="songs" handler={Songs}/>
-    <Route name="home" handler={Videos}/>
+    <Route name="song" path="/song/:song" handler={Song}/>
+    <Route name="home" handler={HomePageVideos}/>
     <Route name="days" handler={HomePage}/>
     <Route name="artists" handler={Artists}/>
     <Route name="artist" path="/artist/:artist" handler={Artist}/>
+    <Route name="video" path="/video/:id" handler={SingleVideo} />
   </Route>
 );
 

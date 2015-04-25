@@ -99,9 +99,6 @@ function uniqBy(uniq, key, dedup) {
       }
     }
   }
-console.log('inside uniqBy');
-  console.log(uniq);
-console.log('returning');
   return uniq;
 }
 
@@ -121,7 +118,7 @@ server.route({
   method: 'GET',
   path: '/api/videos',
   handler: function(request, reply) {
-    reply(videos);
+    reply(uniqBy(videos, 'day', false));
   }
 });
 
@@ -130,7 +127,6 @@ server.route({
   path: '/api/artist/{artist}',
   handler: function(request, reply) {
     var artist = request.params.artist;
-    console.log("artist: "+artist);
     if (/[\sA-Za-z0-9\-\.\'\,]+/.test(artist)) {
       vidDb.find({artist: artist}, function(err, videos) {
         var artistVideos = uniqBy(videos, "day", false);
@@ -139,6 +135,36 @@ server.route({
     } else {
       reply("No artist found.").code(404);
     }
+  }
+});
+
+server.route({
+  method: 'GET',
+  path: '/api/song/{song}',
+  handler: function(request, reply) {
+    var song = request.params.song;
+    if (/[\sA-Za-z0-9\-\.\'\,]+/.test(song)) {
+      vidDb.find({song: song}, function(err, videos) {
+        var songVideos = uniqBy(videos, "day", false);
+        reply(songVideos);
+      });
+    } else {
+      reply("No song found.").code(404);
+    }
+  }
+});
+
+server.route({
+  method: 'GET',
+  path: '/api/video/{id}',
+  handler: function(request, reply) {
+    vidDb.find({_id: request.params.id}, function(err, video) {
+      if (video.length) {
+        reply(video[0]);
+      } else {
+        reply("No artist found.").code(404);
+      }
+    });
   }
 });
 
