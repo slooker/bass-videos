@@ -73,11 +73,9 @@ var Box = React.createClass({
 
 var Videos = React.createClass({
   loadVideos: function() {
-    if (videos.length == 0) {
-      Ajax.get('/api/videos').then(function(response) {
-        this.setState({videos: response});
-      }.bind(this));
-    }
+    Ajax.get('/api/videos').then(function(response) {
+      this.setState({videos: response});
+    }.bind(this));
   },
   getInitialState: function() {
     return {videos: []};
@@ -101,11 +99,9 @@ var Videos = React.createClass({
 
 var Songs = React.createClass({ 
   loadVideos: function() {
-    if (videos.length == 0) {
-      Ajax.get('/api/videos').then(function(response) {
-        this.setState({videos: response});
-      }.bind(this));
-    }
+    Ajax.get('/api/videos').then(function(response) {
+      this.setState({videos: response});
+    }.bind(this));
   },
   getInitialState: function() {
     return {videos: []};
@@ -128,11 +124,9 @@ var Songs = React.createClass({
 
 var Artists = React.createClass({ 
   loadVideos: function() {
-    if (videos.length == 0) {
-      Ajax.get('/api/videos').then(function(response) {
-        this.setState({videos: response});
-      }.bind(this));
-    }
+    Ajax.get('/api/videos').then(function(response) {
+      this.setState({videos: response});
+    }.bind(this));
   },
   getInitialState: function() {
     return {videos: []};
