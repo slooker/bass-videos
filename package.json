@@ -26,5 +26,10 @@
   "bugs": {
     "url": "https://github.com/slooker/bass-videos/issues"
   },
-  "homepage": "https://github.com/slooker/bass-videos"
+  "homepage": "https://github.com/slooker/bass-videos",
+  "devDependencies": {
+    "jasmine-core": "^2.2.0",
+    "karma": "^0.12.31",
+    "karma-jasmine": "^0.3.5"
+  }
 }

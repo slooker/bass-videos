@@ -4,7 +4,6 @@ var RouteHandler = Router.RouteHandler;
 var Link = Router.Link;
 var Ajax = require('./ajax.min.js');
 
-
 var videos = [];
 
 function uniqBy(uniq, key, dedup) {
@@ -101,6 +100,31 @@ var Videos = React.createClass({
       </div>
     )
   }
+});
+
+var Days = React.createClass({
+  loadVideos: function() {
+    Ajax.get('/api/videos').then(function(response) {
+      this.setState({videos: response});
+    }.bind(this));
+  },
+  getInitialState: function() {
+    return {videos: []};
+  },
+  componentDidMount: function() { 
+    this.loadVideos();
+  },
+  render: function() {
+    return (
+      <div id="content">
+        {this.state.videos.map(function(video, i) {
+          return <div className='text-list' key={i}>Day {video.day} - <Link to='video' params={{id: video._id}} key={video._id}>{video.song}</Link> by <Link to='artist' params={{artist: video.artist}}>{video.artist}</Link></div>
+        })}
+      </div>
+    )
+  }
+
+
 });
 
 var Songs = React.createClass({ 
@@ -305,11 +329,11 @@ var HomePage = React.createClass({
 
 var routes = (
   <Route handler={HomePage}>
-    <DefaultRoute handler={Videos}/>
+    <DefaultRoute handler={HomePageVideos}/>
     <Route name="songs" handler={Songs}/>
     <Route name="song" path="/song/:song" handler={Song}/>
     <Route name="home" handler={HomePageVideos}/>
-    <Route name="days" handler={HomePage}/>
+    <Route name="days" handler={Days}/>
     <Route name="artists" handler={Artists}/>
     <Route name="artist" path="/artist/:artist" handler={Artist}/>
     <Route name="video" path="/video/:id" handler={SingleVideo} />

@@ -1,4 +1,4 @@
-var port = 8001;
+var port = 8000;
 var server = 'http://slooker.us';
 
 var exports = module.exports = { 

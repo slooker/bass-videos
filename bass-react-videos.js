@@ -8,9 +8,9 @@ var Path = require('path');
 var config = require('./config.js');
 
 // Schedule the new videos to be checked for every 5 minutes
-var scheduled = schedule.scheduleJob('*/5 * * * *', function() {
-  fetchNewObjects();
-});
+//var scheduled = schedule.scheduleJob('*/5 * * * *', function() {
+//  fetchNewObjects();
+//});
 
 // Setup our hapi server
 var server = new Hapi.Server({
@@ -55,14 +55,15 @@ function fetchNewObjects() {
 }
 
 function imageDownload(imageKey) {
-  fs.exists('public/'+imageKey, function(exists) {
-    localKey = imageKey.replace('mp4', 'png').replace(/\s/g,'');
-    if (!exists) {
-      //console.log(imageKey);
-      var file = fs.createWriteStream('public/'+localKey)
+  localKey = 'public/'+imageKey.replace('mp4', 'png').replace(/\s/g,'');
+  fs.stat(localKey, function(err,stats) {
+    if (err) {
+      // File not found, so download it.  This seems dirty.
+      var file = fs.createWriteStream(localKey)
       s3.getObject({ Bucket: bucket, Key: imageKey}).
       on('httpData', function(chunk) { file.write(chunk); }).
       on('httpDone', function() { file.end(); }).
+      on('error', function(err) { console.log("Error: "+err); }).
       send();
     }
   });
