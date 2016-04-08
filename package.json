@@ -12,14 +12,15 @@
   },
   "dependencies": {
     "aws-sdk": "latest",
+    "hapi": "latest",
+    "jsx-loader": "^0.13.1",
     "nedb": "latest",
     "node-schedule": "latest",
     "node-uuid": "latest",
     "react": "latest",
     "react-router": "latest",
     "webpack": "latest",
-    "jsx-loader": "^0.13.1",
-    "hapi": "latest"
+    "webpage": "^0.3.0"
   },
   "author": "Shawn Looker",
   "license": "Apache 2.0",
